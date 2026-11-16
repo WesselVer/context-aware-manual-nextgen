@@ -77,32 +77,38 @@
 <rect x="32" y="12" width="96" height="70" rx="12" fill="#E4E5E7" stroke="#D0D1D2" stroke-width="1.5"/>
 <path d="M80 86 V112 M67 99 H93" fill="none" stroke="#D0D1D2" stroke-width="11" stroke-linecap="round"/>
 <path d="M80 89 V96 M80 102 V109" fill="none" stroke="#3E6AE1" stroke-width="7" stroke-linecap="round"/>
-<circle cx="68" cy="124" r="9" fill="#E8B4B4"/>
-<circle cx="92" cy="124" r="9" fill="#E8B4B4"/>
-<circle cx="116" cy="124" r="9" fill="#E8B4B4"/>
+<circle cx="116" cy="124" r="9" fill="#F1D0D0"/>
 <circle cx="80" cy="28" r="9" fill="#3E6AE1" stroke="#FFFFFF" stroke-width="2"/>
-<circle cx="60" cy="46" r="9" fill="#3E6AE1" stroke="#FFFFFF" stroke-width="2"/>
-<circle cx="100" cy="46" r="9" fill="#3E6AE1" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="60" cy="46" r="8" fill="#D0D1D2"/>
+<circle cx="100" cy="46" r="8" fill="#D0D1D2"/>
 <circle cx="80" cy="64" r="9" fill="#3E6AE1" stroke="#FFFFFF" stroke-width="2"/>
-<circle cx="44" cy="124" r="9" fill="#3E6AE1" stroke="#FFFFFF" stroke-width="2"/>
-<g fill="none" stroke="#3E6AE1" stroke-width="1.5" stroke-linejoin="round">
-<path d="M91 28 H150 L170 8 H178"/>
-<path d="M111 46 H150 L170 52 H178"/>
-<path d="M91 64 H150 L170 88 H178"/>
-<path d="M95 99 H150 L170 124 H178"/>
-<path d="M44 135 V141 H150 L170 160 H178"/>
+<circle cx="44" cy="124" r="9" fill="#D64545" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="68" cy="124" r="9" fill="#D64545" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="92" cy="124" r="9" fill="#D64545" stroke="#FFFFFF" stroke-width="2"/>
+<g font-size="8" font-weight="700" text-anchor="middle" fill="#FFFFFF">
+<text x="44" y="127">1</text><text x="68" y="127">2</text><text x="92" y="127">3</text>
 </g>
-<text x="182" y="12" font-size="13" font-weight="700" fill="#171A20">ON / OFF</text>
-<text x="182" y="25" font-size="10.5" fill="#393C41">Tap: cruise control</text>
-<text x="182" y="37" font-size="10.5" fill="#393C41">Hold 1 s: adaptive cruise</text>
-<text x="182" y="56" font-size="13" font-weight="700" fill="#171A20">−5 / +5</text>
-<text x="182" y="69" font-size="10.5" fill="#393C41">Set speed, 5 km/h a step</text>
-<text x="182" y="92" font-size="13" font-weight="700" fill="#171A20">RES</text>
-<text x="182" y="105" font-size="10.5" fill="#393C41">Back to your set speed</text>
-<text x="182" y="128" font-size="13" font-weight="700" fill="#171A20">GAP ▲ ▼</text>
-<text x="182" y="141" font-size="10.5" fill="#393C41">Shorter · longer distance</text>
-<text x="182" y="164" font-size="13" font-weight="700" fill="#171A20">AUTOPILOT</text>
-<text x="182" y="177" font-size="10.5" fill="#393C41">First red button, in D</text>
+<g fill="none" stroke="#3E6AE1" stroke-width="1.5" stroke-linejoin="round">
+<path d="M91 28 H160 L172 10 H178"/>
+<path d="M91 64 H154 L172 18 H178"/>
+<path d="M95 99 H150 L170 52 H178"/>
+</g>
+<g fill="none" stroke="#D64545" stroke-width="1.5" stroke-linejoin="round">
+<path d="M92 135 V139 H160 L170 88 H178"/>
+<path d="M68 135 V145 H156 L170 124 H178"/>
+<path d="M44 135 V151 H152 L170 160 H178"/>
+</g>
+<text x="182" y="12" font-size="13" font-weight="700" fill="#171A20">+5 / −5</text>
+<text x="182" y="25" font-size="10.5" fill="#393C41">Top up, bottom down:</text>
+<text x="182" y="37" font-size="10.5" fill="#393C41">the set speed, 5 km/h a step</text>
+<text x="182" y="56" font-size="13" font-weight="700" fill="#171A20">GAP ▲ ▼</text>
+<text x="182" y="69" font-size="10.5" fill="#393C41">Up closer · down further</text>
+<text x="182" y="92" font-size="13" font-weight="700" fill="#171A20">3 · AUTOPILOT</text>
+<text x="182" y="105" font-size="10.5" fill="#393C41">Drives for you, in D</text>
+<text x="182" y="128" font-size="13" font-weight="700" fill="#171A20">2 · ACC</text>
+<text x="182" y="141" font-size="10.5" fill="#393C41">Adaptive cruise</text>
+<text x="182" y="164" font-size="13" font-weight="700" fill="#171A20">1 · CC</text>
+<text x="182" y="177" font-size="10.5" fill="#393C41">Cruise control</text>
 </g>
 <line x1="556" y1="555.5" x2="1051" y2="555.5" stroke="#E4E5E7"/>
 <g id="Gear-gate" transform="translate(556 571)" font-family="'Barlow Semi Condensed', sans-serif" font-weight="700" text-anchor="middle">
@@ -158,12 +164,13 @@
 <rect x="338" y="808" width="171" height="27" rx="13.5" fill="#EAF0FD"/>
 <text x="423.5" y="826" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0.84" fill="#3E6AE1">HOLDS YOUR SPEED</text>
 <g font-size="14" font-weight="700" letter-spacing="1.1" fill="#5C5E62">
-<text x="88" y="868">ON</text><text x="88" y="900">ADJUST</text><text x="88" y="932">STOP</text>
+<text x="88" y="868">ON</text><text x="88" y="900">ADJUST</text><text x="88" y="932">PAUSE</text><text x="88" y="964">OFF</text>
 </g>
 <g font-size="18" fill="#171A20">
-<text x="196" y="869">Tap <tspan font-weight="700">ON / OFF</tspan>, from 20 km/h in D</text>
-<text x="196" y="901"><tspan font-weight="700">−5 / +5</tspan> · <tspan font-weight="700">RES</tspan> after braking</text>
-<text x="196" y="933">Brake, or tap <tspan font-weight="700">ON / OFF</tspan></text>
+<text x="196" y="869">Red button <tspan font-weight="700">1 · CC</tspan>, from 20 km/h in D</text>
+<text x="196" y="901"><tspan font-weight="700">+5 / −5</tspan> set speed</text>
+<text x="196" y="933">Brake pauses it, <tspan font-weight="700">CC</tspan> resumes</text>
+<text x="196" y="965"><tspan font-weight="700">CC</tspan> again</text>
 </g>
 <text x="88" y="994" font-size="16" fill="#5C5E62">Throttle only: it never brakes for you.</text>
 </g>
@@ -173,15 +180,15 @@
 <rect x="803.3" y="808" width="200" height="27" rx="13.5" fill="#EAF0FD"/>
 <text x="903.3" y="826" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0.84" fill="#3E6AE1">KEEPS YOUR DISTANCE</text>
 <g font-size="14" font-weight="700" letter-spacing="1.1" fill="#5C5E62">
-<text x="582.3" y="868">ON</text><text x="582.3" y="900">ADJUST</text><text x="582.3" y="932">STOP</text>
+<text x="582.3" y="868">ON</text><text x="582.3" y="900">ADJUST</text><text x="582.3" y="932">PAUSE</text><text x="582.3" y="964">OFF</text>
 </g>
 <g font-size="18" fill="#171A20">
-<text x="690.3" y="869">Hold <tspan font-weight="700">ON / OFF</tspan> for 1 second</text>
-<text x="690.3" y="901"><tspan font-weight="700">−5 / +5</tspan> speed · <tspan font-weight="700">GAP ▲ ▼</tspan> distance</text>
-<text x="690.3" y="933">Brake, or tap <tspan font-weight="700">ON / OFF</tspan></text>
+<text x="690.3" y="869">Red button <tspan font-weight="700">2 · ACC</tspan>, from 20 km/h in D</text>
+<text x="690.3" y="901"><tspan font-weight="700">+5 / −5</tspan> speed · <tspan font-weight="700">GAP ▲ ▼</tspan> distance</text>
+<text x="690.3" y="933">Brake pauses it, <tspan font-weight="700">ACC</tspan> resumes</text>
+<text x="690.3" y="965"><tspan font-weight="700">ACC</tspan> again</text>
 </g>
-<text x="582.3" y="972" font-size="16" fill="#5C5E62">Stops behind a stopped car.</text>
-<text x="582.3" y="994" font-size="16" fill="#5C5E62"><tspan font-weight="700" fill="#393C41">RES</tspan> or the accelerator drives on.</text>
+<text x="582.3" y="998" font-size="16" fill="#5C5E62">Brakes for the car ahead, down to a stop.</text>
 </g>
 <g id="Autopilot">
 <rect x="1053.7" y="786" width="468" height="230" rx="16" fill="#EAF0FD" stroke="#3E6AE1" stroke-width="2"/>
@@ -189,14 +196,15 @@
 <rect x="1343.7" y="808" width="154" height="27" rx="13.5" fill="#3E6AE1"/>
 <text x="1420.7" y="826" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0.84" fill="#FFFFFF">DRIVES FOR YOU</text>
 <g font-size="14" font-weight="700" letter-spacing="1.1" fill="#5C5E62">
-<text x="1076.7" y="868">ON</text><text x="1076.7" y="900">ADJUST</text><text x="1076.7" y="932">TAKE OVER</text>
+<text x="1076.7" y="868">ON</text><text x="1076.7" y="900">ADJUST</text><text x="1076.7" y="932">TAKE OVER</text><text x="1076.7" y="964">OFF</text>
 </g>
 <g font-size="18" fill="#171A20">
-<text x="1184.7" y="869">First <tspan font-weight="700">red button</tspan>, in D</text>
-<text x="1184.7" y="901"><tspan font-weight="700">−5 / +5</tspan> speed · <tspan font-weight="700">GAP ▲ ▼</tspan> distance</text>
+<text x="1184.7" y="869">Red button <tspan font-weight="700">3 · AUTOPILOT</tspan>, in D</text>
+<text x="1184.7" y="901"><tspan font-weight="700">+5 / −5</tspan> speed · <tspan font-weight="700">GAP ▲ ▼</tspan> distance</text>
 <text x="1184.7" y="933">Brake, steer firmly, or leave D</text>
+<text x="1184.7" y="965"><tspan font-weight="700">AUTOPILOT</tspan> again</text>
 </g>
-<text x="1076.7" y="994" font-size="16" fill="#5C5E62">The accelerator speeds it up while it steers.</text>
+<text x="1076.7" y="998" font-size="16" fill="#5C5E62">The accelerator speeds it up while it steers.</text>
 </g>
 </g>
 
@@ -205,7 +213,9 @@
 <text x="86" y="1059">Blue: the car helps</text>
 <rect x="250" y="1047" width="14" height="14" rx="4" fill="#D97706"/>
 <text x="272" y="1059">Amber: you take control</text>
-<text x="470" y="1059">One assist at a time · rising chime on, falling chime off</text>
-<text x="1523" y="1059" text-anchor="end">Study staff: keyboard B / E / P starts the manual, hold R to stop it</text>
+<rect x="484" y="1047" width="14" height="14" rx="7" fill="#D64545"/>
+<text x="506" y="1059">Red: the assists</text>
+<text x="660" y="1059">One assist at a time · rising chime on, falling chime off</text>
+<text x="1523" y="1059" text-anchor="end">Study staff: B starts the manual, F the free drive, hold R to stop it</text>
 </g>
 </svg>

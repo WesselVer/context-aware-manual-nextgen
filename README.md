@@ -144,8 +144,8 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 ### The protocol
 1. **Before**: the participant fills in the pre-questionnaire (MS Forms): driving experience, which car features
    they know and how confident they are with them.
-2. **Introduction**: the researcher explains the simulator and the wheel. The A3 handout in
-   [`study/`](study/) shows the controls and has spaces for the questionnaires' QR codes.
+2. **Introduction**: the researcher explains the simulator and the wheel with the [A3 handout](#the-g25)
+   ([`study/`](study/)), which also carries the questionnaires' QR codes.
 3. **Getting used to the car**: `python drive.py --tm-port 8010 --participant P07`. The participant drives on the
    highway for a few minutes; the manual is off.
 4. **Guided drive**: the researcher presses **B**. The manual starts and so does the log. The participant keeps
@@ -205,8 +205,13 @@ Highway ramps count as junctions. The rules and the tips' wording are in [`manua
 | Clutch | cuts the power (CARLA has no clutch) |
 
 An assist's red button switches it on, resumes it after braking, and switches it off. Braking, leaving D, or
-turning the wheel firmly against the autopilot hands the car back. The steering ratio is 7:1, quicker than a real
+turning the wheel firmly against the autopilot hands the car back. The steering ratio is 14:1, close to a real
 car's. Without a G25 the keyboard drives the car (WASD or the arrows; K for the autopilot).
+
+![The A3 controls handout: the steering wheel, the shifter with its red assist buttons, the pedals, and how to use cruise control, adaptive cruise and the autopilot](docs/img/controls_handout.jpg)
+
+*The A3 handout participants keep beside the wheel ([`study/controls-handout-a3.pdf`](study/controls-handout-a3.pdf),
+editable as [SVG](study/controls-handout-a3.svg); add your questionnaires' QR codes in the dashed boxes).*
 
 ## Traffic
 
@@ -255,8 +260,6 @@ CARLA's measurements, and the total is their mean:
 - **Port 8000** is reserved by Windows on many PCs, hence `--tm-port 8010`.
 - **Traffic on Town04 only**: the SUMO network in `traffic/Town04/` is the only one shipped. Other maps (`--map`)
   drive with `--traffic 0`.
-- The dashboard's **showcase page** (`manual/make_showcase.py`) predates the minimal layout and no longer renders.
-- The **A3 handout** in `study/` predates the red buttons: it still shows adaptive cruise as a long press on CC.
 
 ## Project layout
 
