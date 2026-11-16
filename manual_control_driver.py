@@ -144,12 +144,15 @@ from carla import ColorConverter as cc
 import argparse
 import collections
 import datetime
+import faulthandler
 import logging
 import math
 import random
 import time
 import re
 import os
+import subprocess
+import tempfile
 import weakref
 
 try:
@@ -403,6 +406,8 @@ CONTEXT_OFF_HOLD_SECONDS = 1.0
 # Holding Z this long resets everything for the next participant.
 NEXT_PARTICIPANT_HOLD_SECONDS = 5.0
 CONTEXT_NEAR_M = 30.0
+# A frame longer than this (s) prints every thread's stack (see game_loop).
+WATCHDOG_SECONDS = 4.0
 CONTEXT_WALKERS_NEAR_M = 15.0
 JUNCTION_AHEAD_SECONDS = 4.0
 JUNCTION_AHEAD_MIN_M = 25.0
@@ -2403,6 +2408,7 @@ def game_loop(args):
     world = None
     original_settings = None
     dashboard = None
+    traffic = None
     tips = Tips()
     wheel = None
     participant = args.participant or time.strftime('session-%Y%m%d-%H%M%S')
@@ -2428,6 +2434,15 @@ def game_loop(args):
         # Always a clear day, whatever the server had: Town04 starts grey and
         # foggy, and every participant should drive in the same weather.
         sim_world.set_weather(carla.WeatherParameters.ClearNoon)
+        # A drive killed with SUMO traffic left the server in synchronous mode,
+        # waiting for ticks that will not come; this one starts asynchronous.
+        if not args.sync and sim_world.get_settings().synchronous_mode:
+            settings = sim_world.get_settings()
+            settings.synchronous_mode = False
+            settings.fixed_delta_seconds = None
+            sim_world.apply_settings(settings)
+            for vehicle in sim_world.get_actors().filter('vehicle.*'):
+                vehicle.destroy()  # the killed drive's traffic, frozen where it was
         traffic_manager = client.get_trafficmanager(args.tm_port)
         if args.sync:
             original_settings = sim_world.get_settings()
@@ -2476,13 +2491,35 @@ def game_loop(args):
         else:
             sim_world.wait_for_tick()
 
+        # SUMO's traffic round the car, on a clock of its own that ticks the
+        # world in synchronous mode from here on (sumo_traffic.py).
+        if args.traffic > 0 and not args.sync:
+            from sumo_traffic import SumoTraffic
+            town = sim_world.get_map().name.split('/')[-1].replace('_Opt', '')
+            try:
+                traffic = SumoTraffic(client, traffic_manager, lambda: world.player, town, args.traffic,
+                                      os.path.join(tempfile.gettempdir(), 'context-manual-sumo'),
+                                      pump=pygame.event.pump)
+                traffic.start()
+            except (ImportError, ValueError, OSError, subprocess.CalledProcessError) as error:
+                traffic = None
+                print('No SUMO traffic: %s' % error)
+
         clock = pygame.time.Clock()
         refocus = dashboard is not None
         last_collision = None
         while True:
+            # A watchdog: if a frame takes more than WATCHDOG_SECONDS, every
+            # thread's stack goes to the output, to show where the drive hangs.
+            faulthandler.dump_traceback_later(WATCHDOG_SECONDS, repeat=True)
             if args.sync:
                 sim_world.tick()
-            clock.tick_busy_loop(60)
+            if traffic is not None:
+                # Sleeps, so the traffic's clock thread gets Python meanwhile;
+                # the busy loop held it and slowed that clock to 0.6x real time.
+                clock.tick(60)
+            else:
+                clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock, args.sync):
                 return
             world.tick(clock)
@@ -2522,6 +2559,11 @@ def game_loop(args):
                     refocus = False
 
     finally:
+
+        faulthandler.cancel_dump_traceback_later()
+        # First, so the world is back in asynchronous mode before the car goes.
+        if traffic is not None:
+            traffic.close()
 
         drive_log.close()
 
@@ -2611,6 +2653,10 @@ def main():
     argparser.add_argument(
         '--steer-ratio', metavar='R', default=14.0, type=float,
         help='degrees of wheel per degree of front-wheel angle (default: 14)')
+    argparser.add_argument(
+        '--traffic', metavar='CARS_PER_HOUR', default=1500, type=int,
+        help='SUMO traffic round the car, this many cars an hour entering the map (about 60 on '
+             'Town04 at once); 0 for none (default: 1500; sumo_traffic.py)')
     argparser.add_argument(
         '--turn-wheel', action='store_true',
         help='turn the car\'s own steering wheel in the driver\'s view with the steering '

@@ -14,11 +14,14 @@ manual's tips appear.
 - `smart_manual_dashboard/`: the second-screen dashboard, the context-aware
   tips (`tips.py`), the drive log and driving score (`drive_log.py`) and the
   participant report (`report.py`).
+- `sumo_traffic.py`, `sumo_files/`: traffic from [SUMO](https://eclipse.dev/sumo/)
+  that drives like people round your car (below).
 
 ## Running it
 
 CARLA 0.9.16 (Windows), with its Python client (the release ships a wheel
-for Python 3.12 only) in an environment beside `pygame` and `numpy`:
+for Python 3.12 only) in an environment beside `pygame`, `numpy` and SUMO
+(`pip install eclipse-sumo sumolib traci lxml`):
 
 ```bash
 CarlaUE4.exe -windowed -ResX=1280 -ResY=720
@@ -36,6 +39,27 @@ It loads Town04 (a small town inside a highway loop) unless `--map` names
 another. `--participant P07` logs a user test to `study_data/P07/`, and
 `python -m smart_manual_dashboard.report P07` writes the report. The script's
 `--help` lists every key and option.
+
+## Traffic
+
+SUMO simulates the traffic on the whole map, about 60 cars on Town04
+(`--traffic` sets how many enter an hour, 1500 by default; `--traffic 0` for
+none). Its drivers follow, brake and change lanes by SUMO's Extended
+Intelligent Driver Model, each a little above or below the limit, and your
+car is mirrored into SUMO, so they react to you: they slow down behind you
+and let you merge. Only the cars within 200 m of you exist in CARLA. SUMO
+also runs the traffic lights. The bridge is CARLA's own co-simulation, and
+the way it runs and the drivers' parameters follow
+[Coupled CARLA](https://github.com/bazilinskyy/coupled-carla).
+
+With traffic, CARLA runs in synchronous mode on a 50 Hz clock that keeps
+real time, ticked by a thread of the drive; the window keeps 60 fps. The
+autopilot steers once a tick, so this clock also steadies it: on the
+asynchronous server at 20 frames a second it weaves (CARLA's Traffic Manager
+corrects too late at low rates). The drive prints a line every 10 s saying
+how the clock keeps up (`1.00x real time`). A drive that is killed rather
+than closed leaves the server in synchronous mode with its traffic frozen;
+the next drive puts it back.
 
 ## The G25
 

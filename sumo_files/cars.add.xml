@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SUMO vehicle types for the traffic (sumo_traffic.py). Each id is the CARLA blueprint the
+     bridge spawns for it; sizes are the blueprints' bounding boxes on CARLA 0.9.16 (width at most
+     2.1 m: the boxes include the mirrors). How the drivers drive is from Coupled CARLA
+     (github.com/bazilinskyy/coupled-carla, drivers.py, MIT): SUMO's Extended Intelligent Driver
+     Model, a comfortable 3.4 m/s2 braking (AASHTO), a 1.2 s time gap and 2 m minimum gap (Treiber
+     and Kesting), nobody forcing a way through a junction, and each driver's speed spread round
+     the limit (speedFactor). The probabilities make a mix of everyday cars, a few sports cars, vans
+     and trucks. -->
+<additional>
+  <vTypeDistribution id="cars">
+    <vType id="vehicle.toyota.prius" vClass="passenger" probability="1.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.51" width="2.01" height="1.52"/>
+    <vType id="vehicle.seat.leon" vClass="passenger" probability="1.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.19" width="1.82" height="1.47"/>
+    <vType id="vehicle.citroen.c3" vClass="passenger" probability="1.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="3.99" width="1.85" height="1.62"/>
+    <vType id="vehicle.nissan.micra" vClass="passenger" probability="1.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="3.63" width="1.85" height="1.50"/>
+    <vType id="vehicle.chevrolet.impala" vClass="passenger" probability="1.0" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="5.36" width="2.03" height="1.41"/>
+    <vType id="vehicle.tesla.model3" vClass="passenger" probability="1.0" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.79" width="2.10" height="1.49"/>
+    <vType id="vehicle.lincoln.mkz_2017" vClass="passenger" probability="1.0" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.90" width="2.10" height="1.51"/>
+    <vType id="vehicle.audi.a2" vClass="passenger" probability="1.0" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="3.71" width="1.79" height="1.55"/>
+    <vType id="vehicle.bmw.grandtourer" vClass="passenger" probability="1.0" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.61" width="2.10" height="1.67"/>
+    <vType id="vehicle.audi.etron" vClass="passenger" probability="0.8" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.86" width="2.03" height="1.65"/>
+    <vType id="vehicle.mini.cooper_s" vClass="passenger" probability="0.8" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="3.81" width="1.97" height="1.48"/>
+    <vType id="vehicle.nissan.patrol" vClass="passenger" probability="0.6" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.60" width="1.93" height="1.85"/>
+    <vType id="vehicle.mercedes.coupe" vClass="passenger" probability="0.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="5.03" width="2.10" height="1.65"/>
+    <vType id="vehicle.audi.tt" vClass="passenger" probability="0.4" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.18" width="1.99" height="1.39"/>
+    <vType id="vehicle.ford.mustang" vClass="passenger" probability="0.4" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.72" width="1.89" height="1.30"/>
+    <vType id="vehicle.jeep.wrangler_rubicon" vClass="passenger" probability="0.4" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="3.87" width="1.91" height="1.88"/>
+    <vType id="vehicle.volkswagen.t2" vClass="passenger" probability="0.3" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="4.48" width="2.07" height="2.04"/>
+    <vType id="vehicle.carlamotors.carlacola" vClass="passenger" probability="0.5" carFollowModel="EIDM" speedFactor="normc(1.0,0.1,0.8,1.2)" accel="2.6" decel="3.4" emergencyDecel="8.0" apparentDecel="3.4" tau="1.2" minGap="2.0" jmIgnoreFoeProb="0" impatience="0" length="5.20" width="2.10" height="2.47"/>
+  </vTypeDistribution>
+</additional>

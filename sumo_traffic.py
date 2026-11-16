@@ -1,0 +1,316 @@
+"""Traffic from SUMO (eclipse.dev/sumo): cars that drive like people round the drive's car.
+
+SUMO simulates the traffic on the whole map: each driver follows, brakes and
+changes lanes by SUMO's driver models (sumo_files/cars.add.xml), and keeps to the
+speed limit give or take a tenth. The drive's car is mirrored into SUMO, so the
+traffic sees it: cars behind it slow down for it, cars let it merge.
+
+The two simulators run on one clock. A thread here ticks CARLA in synchronous
+mode every STEP seconds of real time, and each tick: SUMO takes a step; the
+SUMO cars within RADIUS m of the drive's car are placed in CARLA (the rest only
+exist in SUMO, which keeps the server's frame time down); the traffic lights
+take SUMO's state; CARLA ticks; and the drive's car's pose goes back to SUMO.
+The window, wheel and dashboard keep their own 60 frames a second.
+
+CARLA's Traffic Manager (the autopilot of the drive's car) lives in this
+process, so it ticks with the world, in step with it: a fixed time step,
+instead of whatever time passed since the last frame.
+
+The bridge (sumo_files/sumo_integration) is CARLA 0.9.16's Co-Simulation/Sumo; the
+way it is run (level of detail, one batch of poses per tick) and the drivers'
+parameters follow Coupled CARLA (github.com/bazilinskyy/coupled-carla), both MIT.
+
+Needs SUMO for Python: pip install eclipse-sumo sumolib traci lxml.
+"""
+
+import logging
+import os
+import subprocess
+import sys
+import threading
+import time
+
+import carla
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SUMO_DIR = os.path.join(HERE, 'sumo_files')
+# The SUMO network of each map CARLA ships one for.
+NETS = {'Town04': os.path.join(SUMO_DIR, 'Town04', 'Town04.net.xml')}
+CAR_TYPES = os.path.join(SUMO_DIR, 'cars.add.xml')
+# Seconds of simulated time per tick, for CARLA and SUMO. The autopilot (the
+# Traffic Manager) steers once a tick, and the fewer ticks, the more it weaves:
+# on Town04's highway at 90 km/h its yaw wobbled 1.3 deg/s at 20 Hz, 0.6 at
+# 50 Hz and 0.2 at the ~160 Hz of an idle server (2026-11-16). A tick with the
+# drive's cameras and the traffic took 8 ms (12 ms at the 90th percentile), so
+# 50 Hz keeps real time.
+STEP = 0.02
+# How often the clock prints how it keeps up.
+REPORT_SECONDS = 10.0
+# SUMO cars exist in CARLA within this distance (m) of the drive's car, and
+# go again beyond it plus LOD_MARGIN.
+RADIUS = 200.0
+LOD_MARGIN = 30.0
+# SUMO runs this long before the drive starts, so the roads are already full.
+WARM_UP_SECONDS = 240.0
+# Collisions in SUMO are logged, not "resolved" by teleporting the cars (which in
+# CARLA made one vanish); a car stuck for 120 s is taken off.
+SUMO_ARGS = ['--collision.action', 'warn', '--collision.mingap-factor', '0',
+             '--time-to-teleport', '120', '--ignore-route-errors', 'true',
+             '--no-step-log', 'true', '--no-warnings', 'true']
+
+
+def _sumo_home():
+    if not os.environ.get('SUMO_HOME'):
+        import sumo  # the eclipse-sumo package
+        os.environ['SUMO_HOME'] = sumo.SUMO_HOME
+    return os.environ['SUMO_HOME']
+
+
+def write_config(net, work, cars_per_hour, seed=42, duration=4 * 3600):
+    """Random car trips over the network at cars_per_hour, and a .sumocfg for
+    them, in the folder work; returns the .sumocfg's path."""
+    home = _sumo_home()
+    os.makedirs(work, exist_ok=True)
+    routes = os.path.join(work, 'cars.rou.xml')
+    subprocess.check_call(
+        [sys.executable, os.path.join(home, 'tools', 'randomTrips.py'), '-n', net, '-r', routes,
+         '-o', os.path.join(work, 'cars.trips.xml'), '-b', '0', '-e', str(int(duration)),
+         '-p', '%.3f' % (3600.0 / cars_per_hour), '--seed', str(seed), '--vclass', 'passenger',
+         '--prefix', 'car', '--min-distance', '300',
+         '--trip-attributes', 'type="cars" departLane="best" departSpeed="max"',
+         '--additional-file', CAR_TYPES, '--validate'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    cfg = os.path.join(work, 'traffic.sumocfg')
+    # The router behind --validate copies the vehicle types into the route file.
+    with open(cfg, 'w') as f:
+        f.write('<configuration>\n  <input>\n    <net-file value="%s"/>\n    <route-files value="%s"/>\n'
+                '  </input>\n  <random_number><seed value="%d"/></random_number>\n</configuration>\n'
+                % (net, routes, seed))
+    return cfg
+
+
+class SumoTraffic(object):
+    """SUMO's traffic in CARLA round the car hero() returns, on a clock of its own."""
+
+    def __init__(self, client, traffic_manager, hero, map_name, cars_per_hour, work, pump=None):
+        _sumo_home()
+        sys.path.insert(0, SUMO_DIR)
+        from sumo_integration.bridge_helper import BridgeHelper
+        from sumo_integration.constants import INVALID_ACTOR_ID
+        from sumo_integration.sumo_simulation import SumoSimulation
+        self._bridge, self._invalid = BridgeHelper, INVALID_ACTOR_ID
+        net = NETS.get(map_name)
+        if net is None:
+            raise ValueError('no SUMO network for %s (there is one for %s)' % (map_name, ', '.join(NETS)))
+        self._client = client
+        self._world = client.get_world()
+        self._tm = traffic_manager
+        self._hero = hero
+        self.cars_per_hour = cars_per_hour
+        print('SUMO traffic: %d cars an hour on %s ...' % (cars_per_hour, map_name))
+        cfg = write_config(net, work, cars_per_hour)
+        self.sumo = SumoSimulation(cfg, STEP, extra_args=SUMO_ARGS)
+        BridgeHelper.blueprint_library = self._world.get_blueprint_library()
+        BridgeHelper.offset = self.sumo.get_net_offset()
+        import traci
+        # Ahead of the drive, so there is traffic from the start: a second at a
+        # time inside SUMO, and between them pump() (the drive's window answers
+        # Windows, which otherwise calls it not responding and may close it).
+        for second in range(1, int(WARM_UP_SECONDS) + 1):
+            traci.simulationStep(float(second))
+            if pump is not None:
+                pump()
+        self._traci = traci
+        self._live = set(traci.vehicle.getIDList())
+        for actor_id in self._live:
+            self.sumo.subscribe(actor_id)
+        # CARLA's traffic lights: those SUMO also has follow SUMO's programmes,
+        # so the traffic and the lights agree.
+        self._lights = {}
+        for landmark in self._world.get_map().get_all_landmarks_of_type('1000001'):
+            if landmark.id:
+                light = self._world.get_traffic_light(landmark)
+                if light is not None:
+                    self._lights[landmark.id] = light
+        self._common_lights = self.sumo.traffic_light_ids & set(self._lights)
+        for light in self._lights.values():
+            light.freeze(True)
+        self._in_carla = {}       # SUMO id -> CARLA id
+        self._twin = None         # (CARLA id of the drive's car, its SUMO id)
+        self._tick_no = 0
+        self.frame_ms = 0.0       # how long the last tick took
+        self.world_ms = 0.0       # of which CARLA's own tick
+        self.behind_s = 0.0       # how far the clock has fallen behind real time
+        self._running = False
+        self._thread = None
+        self._original = self._world.get_settings()
+
+    # -- the clock -------------------------------------------------------------
+
+    def start(self):
+        settings = self._world.get_settings()
+        settings.synchronous_mode = True
+        settings.fixed_delta_seconds = STEP
+        self._world.apply_settings(settings)
+        self._tm.set_synchronous_mode(True)
+        # The clock thread shares Python with the drive's window; by default Python
+        # switches threads every 5 ms, and a tick has a dozen calls that wait on it.
+        sys.setswitchinterval(0.0005)
+        self._running = True
+        self._thread = threading.Thread(target=self._run, name='sumo-traffic', daemon=True)
+        self._thread.start()
+        print('SUMO traffic: %d cars on the network, those within %d m of the car in CARLA'
+              % (len(self._live), RADIUS))
+
+    def _run(self):
+        due = time.perf_counter()
+        report, ticks, worked, slowest, in_world = due + REPORT_SECONDS, 0, 0.0, 0.0, 0.0
+        while self._running:
+            began = time.perf_counter()
+            try:
+                self._tick()
+            except Exception:  # noqa: BLE001 - the traffic must not end the drive
+                logging.exception('SUMO traffic: tick failed')
+            now = time.perf_counter()
+            self.frame_ms = 1000.0 * (now - began)
+            ticks, worked, slowest = ticks + 1, worked + self.frame_ms, max(slowest, self.frame_ms)
+            in_world += self.world_ms
+            if now >= report:
+                # How the clock keeps up: simulated seconds per real one, and
+                # how much of a tick is CARLA's own (the server's frame).
+                print('SUMO traffic: %.2fx real time, tick %.1f ms (CARLA %.1f, slowest %.0f), %d cars in CARLA'
+                      % (ticks * STEP / (now - report + REPORT_SECONDS), worked / ticks, in_world / ticks,
+                         slowest, len(self._in_carla)), flush=True)
+                report, ticks, worked, slowest, in_world = now + REPORT_SECONDS, 0, 0.0, 0.0, 0.0
+            due += STEP
+            if now < due:
+                time.sleep(due - now)
+                self.behind_s = 0.0
+            else:
+                # Slower than real time: carry on from now rather than rushing to catch up.
+                self.behind_s = now - due
+                if self.behind_s > 0.25:
+                    due = now
+
+    def _tick(self):
+        bridge, sumo = self._bridge, self.sumo
+        sumo.tick()
+        for actor_id in sumo.spawned_actors:
+            if self._twin is None or actor_id != self._twin[1]:
+                sumo.subscribe(actor_id)
+                self._live.add(actor_id)
+        for actor_id in sumo.destroyed_actors:
+            self._live.discard(actor_id)
+            carla_id = self._in_carla.pop(actor_id, None)
+            if carla_id is not None:
+                self._client.apply_batch([carla.command.DestroyActor(carla_id)])
+        if self._twin is not None and self._twin[1] in sumo.destroyed_actors:
+            self._twin = None  # SUMO took it off (teleported); it gets a new one below
+
+        hero = self._hero()
+        try:
+            here = hero.get_location() if hero is not None else None
+        except RuntimeError:
+            here = None
+
+        # Level of detail: every 5 ticks, and for cars just in, spawn what is near
+        # the drive's car and remove what has gone far.
+        self._tick_no += 1
+        check = self._live if self._tick_no % 5 == 0 else (sumo.spawned_actors & self._live)
+        poses = {}
+        for actor_id in list(check):
+            try:
+                actor = sumo.get_actor(actor_id)
+            except (KeyError, TypeError):
+                continue
+            transform = bridge.get_carla_transform(actor.transform, actor.extent)
+            poses[actor_id] = (actor, transform)
+            if here is None:
+                continue
+            d = transform.location.distance(here)
+            if actor_id not in self._in_carla and d <= RADIUS:
+                blueprint = bridge.get_carla_blueprint(actor, False)
+                if blueprint is None:
+                    continue
+                spawn = carla.Transform(transform.location + carla.Location(z=25.0), transform.rotation)
+                response = self._client.apply_batch_sync(
+                    [carla.command.SpawnActor(blueprint, spawn).then(
+                        carla.command.SetSimulatePhysics(carla.command.FutureActor, False))], False)[0]
+                if not response.error:
+                    self._in_carla[actor_id] = response.actor_id
+            elif actor_id in self._in_carla and d > RADIUS + LOD_MARGIN:
+                self._client.apply_batch([carla.command.DestroyActor(self._in_carla.pop(actor_id))])
+
+        # Every SUMO car in CARLA to SUMO's pose, in one batch.
+        batch = []
+        for actor_id, carla_id in self._in_carla.items():
+            if actor_id in poses:
+                transform = poses[actor_id][1]
+            else:
+                try:
+                    actor = sumo.get_actor(actor_id)
+                except (KeyError, TypeError):
+                    continue
+                transform = bridge.get_carla_transform(actor.transform, actor.extent)
+            batch.append(carla.command.ApplyTransform(carla_id, transform))
+        if batch:
+            self._client.apply_batch(batch)
+
+        for landmark_id in self._common_lights:
+            state = bridge.get_carla_traffic_light_state(sumo.get_traffic_light_state(landmark_id))
+            if state is not None and self._lights[landmark_id].state != state:
+                self._lights[landmark_id].set_state(state)
+
+        world_began = time.perf_counter()
+        self._world.tick()
+        self.world_ms = 1000.0 * (time.perf_counter() - world_began)
+
+        # The drive's car into SUMO, so the traffic sees it.
+        if hero is None or here is None:
+            return
+        try:
+            if self._twin is not None and self._twin[0] != hero.id:
+                self._remove_twin()
+            if self._twin is None:
+                type_id = bridge.get_sumo_vtype(hero)
+                sumo_id = sumo.spawn_actor(type_id) if type_id else self._invalid
+                if sumo_id == self._invalid:
+                    return
+                self._twin = (hero.id, sumo_id)
+                sumo.subscribe(sumo_id)
+            sumo.synchronize_vehicle(self._twin[1], bridge.get_sumo_transform(hero.get_transform(),
+                                                                              hero.bounding_box.extent))
+        except (RuntimeError, self._traci.exceptions.TraCIException) as error:
+            logging.debug('SUMO traffic: the drive\'s car: %s', error)
+
+    def _remove_twin(self):
+        try:
+            self.sumo.destroy_actor(self._twin[1])
+        except self._traci.exceptions.TraCIException:
+            pass
+        self._twin = None
+
+    def cars_in_carla(self):
+        return len(self._in_carla)
+
+    # -- the end ---------------------------------------------------------------
+
+    def close(self):
+        """Stops the clock, takes the traffic out of CARLA, ends SUMO, and gives
+        the world back in asynchronous mode."""
+        self._running = False
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        try:
+            self._client.apply_batch_sync([carla.command.DestroyActor(i) for i in self._in_carla.values()], False)
+            for light in self._lights.values():
+                light.freeze(False)
+            self._tm.set_synchronous_mode(False)
+            self._world.apply_settings(self._original)
+        except RuntimeError as error:
+            logging.warning('SUMO traffic: closing CARLA: %s', error)
+        self._in_carla = {}
+        try:
+            self.sumo.close()
+        except Exception:  # noqa: BLE001
+            pass
