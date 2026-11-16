@@ -1,7 +1,7 @@
 """Traffic from SUMO (eclipse.dev/sumo): cars that drive like people round the drive's car.
 
 SUMO simulates the traffic on the whole map: each driver follows, brakes and
-changes lanes by SUMO's driver models (sumo_files/cars.add.xml), and keeps to the
+changes lanes by SUMO's driver models (traffic/cars.add.xml), and keeps to the
 speed limit give or take a tenth. The drive's car is mirrored into SUMO, so the
 traffic sees it: cars behind it slow down for it, cars let it merge.
 
@@ -16,7 +16,7 @@ CARLA's Traffic Manager (the autopilot of the drive's car) lives in this
 process, so it ticks with the world, in step with it: a fixed time step,
 instead of whatever time passed since the last frame.
 
-The bridge (sumo_files/sumo_integration) is CARLA 0.9.16's Co-Simulation/Sumo; the
+The bridge (traffic/sumo_integration) is CARLA 0.9.16's Co-Simulation/Sumo; the
 way it is run (level of detail, one batch of poses per tick) and the drivers'
 parameters follow Coupled CARLA (github.com/bazilinskyy/coupled-carla), both MIT.
 
@@ -35,7 +35,7 @@ import time
 import carla
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUMO_DIR = os.path.join(HERE, 'sumo_files')
+SUMO_DIR = HERE
 # The SUMO network of each map CARLA ships one for.
 NETS = {'Town04': os.path.join(SUMO_DIR, 'Town04', 'Town04.net.xml')}
 CAR_TYPES = os.path.join(SUMO_DIR, 'cars.add.xml')

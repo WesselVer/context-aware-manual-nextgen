@@ -1,7 +1,7 @@
 """A participant's driving report, and one table of every participant.
 
-    python -m smart_manual_dashboard.report P07     study_data/P07/report.html
-    python -m smart_manual_dashboard.report --all   a report for everyone
+    python -m manual.report P07     study_data/P07/report.html
+    python -m manual.report --all   a report for everyone
 
 The report reads drive.json (drive_log.py) and shows the driving score with
 the rule behind each part, every metric with what it measures, and the
@@ -18,8 +18,8 @@ import json
 import os
 import time
 
-from smart_manual_dashboard.drive_log import DATA_DIR, FEATURE_NAMES, score as drive_score
-from smart_manual_dashboard.tips import TIPS
+from manual.drive_log import DATA_DIR, FEATURE_NAMES, score as drive_score
+from manual.tips import TIPS
 
 # The tip ids, to the feature each teaches.
 TIP_FEATURES = {tip['id']: tip['learn'] for tip in TIPS}

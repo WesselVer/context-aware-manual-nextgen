@@ -9,7 +9,7 @@ is decided by tips.py exactly as in the simulator. The dashboard's frames,
 10 a second, play in the real dashboard.html, wrapped in a player with
 chapters and captions. Fonts are inlined, so the page is one file.
 
-    python -m smart_manual_dashboard.make_showcase showcase.html
+    python -m manual.make_showcase showcase.html
 """
 
 import base64
@@ -18,7 +18,7 @@ import os
 import re
 import sys
 
-from smart_manual_dashboard.tips import TIPS, Tips
+from manual.tips import TIPS, Tips
 
 # The scripted drive shows the cruise-control, ACC and autopilot tips.
 SHOWCASE_TIPS = [tip for tip in TIPS if tip['id'] in ('cc-on', 'cc-brake', 'acc-on', 'autopilot')]
@@ -163,7 +163,7 @@ def build():
 
 def main():
     if len(sys.argv) != 2:
-        sys.exit('usage: python -m smart_manual_dashboard.make_showcase OUTPUT.html')
+        sys.exit('usage: python -m manual.make_showcase OUTPUT.html')
     with open(sys.argv[1], 'w', encoding='utf-8') as f:
         f.write(build())
     print('Wrote %s' % sys.argv[1])

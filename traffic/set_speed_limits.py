@@ -7,7 +7,7 @@ values CARLA's signs show (the drive's speed score reads the signs): SIGN_KMH. A
 has no limit of its own and takes the one of the road leading into it. Sidewalks and shoulders are left.
 
 usage (with the CARLA server on the town):
-    python sumo_files/set_speed_limits.py sumo_files/Town04/Town04.net.xml
+    python traffic/set_speed_limits.py traffic/Town04/Town04.net.xml
 """
 import re
 import sys

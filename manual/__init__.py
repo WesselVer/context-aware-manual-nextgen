@@ -15,7 +15,7 @@ server-sent events, so nothing beyond the standard library is needed.
     ...
     dashboard.close()
 
-Run this package on its own (python -m smart_manual_dashboard) for a demo
+Run this package on its own (python -m manual) for a demo
 that sweeps the speed without CARLA.
 """
 
@@ -298,7 +298,7 @@ def focus_window(hwnd):
 def _demo():
     import argparse
     import math
-    from smart_manual_dashboard.tips import Tips
+    from manual.tips import Tips
     argparser = argparse.ArgumentParser(description='Smart manual dashboard demo (no CARLA)')
     argparser.add_argument('--port', default=0, type=int, help='HTTP port (default: any free port)')
     argparser.add_argument('--monitor', default=None, type=int,

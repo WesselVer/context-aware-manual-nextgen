@@ -16,7 +16,7 @@ Dodge Charger, Nissan Patrol, Ford taxi, Mini Cooper), each with a tuned eye
 position; Tab cycles the camera views. Pass --filter for the original
 random-car behaviour.
 
-A second window opens with the smart-manual dashboard (smart_manual_dashboard/),
+A second window opens with the smart-manual dashboard (manual/),
 full screen on the second monitor, showing the car's speed. --no-dashboard
 turns it off.
 
@@ -58,7 +58,7 @@ accelerator overrides it while held: the car speeds up, by up to 40 km/h at
 full throttle, and the autopilot keeps steering, coming back to its own
 speed once the pedal is released.
 
-The context-aware manual (smart_manual_dashboard/tips.py) is off when the
+The context-aware manual (manual/tips.py) is off when the
 drive starts. B starts it, the same for every driver: the tips from the
 basics up. The dashboard's manual indicator lights up; holding R for a
 second stops it. A tip only comes at a safe moment: standing still, steady
@@ -67,12 +67,12 @@ and no manoeuvre under way. It stays until the driver has done it.
 
 User tests: with --participant P07, the first B starts the test as
 well as the manual: a drive log in study_data/P07/
-(smart_manual_dashboard/drive_log.py) of the car, the assists, the tips, and
+(manual/drive_log.py) of the car, the assists, the tips, and
 CARLA's collision and lane-invasion sensors. F starts the free drive: no
 tips for --free-drive-seconds (120), or until F again, then the drive is scored (safety, lane
 keeping, speed, smoothness, features used) and the score shows as a final
 tip. --record also records the drive with CARLA's recorder. Afterwards,
-python -m smart_manual_dashboard.report P07 writes the
+python -m manual.report P07 writes the
 participant's report.
 
 The dashboard starts in its minimal layout, styled after a production
@@ -207,11 +207,11 @@ try:
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
-from cabin_wheel import CabinWheel
-from smart_manual_dashboard import Dashboard, focus_window
-from smart_manual_dashboard.drive_log import DATA_DIR, DriveLog
-from smart_manual_dashboard.tips import Tips
-from steering_wheel import (SteeringWheel, PADDLE_LEFT, PADDLE_RIGHT,
+from hardware.cabin_wheel import CabinWheel
+from manual import Dashboard, focus_window
+from manual.drive_log import DATA_DIR, DriveLog
+from manual.tips import Tips
+from hardware.steering_wheel import (SteeringWheel, PADDLE_LEFT, PADDLE_RIGHT,
                             WHEEL_BUTTON_LEFT, WHEEL_BUTTON_RIGHT,
                             CC_BUTTON, ACC_BUTTON, CRUISE_DOWN, CRUISE_UP,
                             GAP_DOWN, GAP_UP, AUTOPILOT_BUTTON)
@@ -636,7 +636,7 @@ class LeadFinder(object):
 
 
 class DrivingContext(object):
-    """What is around the car, for the context-aware tips (smart_manual_dashboard.tips).
+    """What is around the car, for the context-aware tips (manual.tips).
 
     The traffic close by and the junction ahead are measured 5 times a
     second; a junction is looked for along the ego lane's waypoints (at a
@@ -691,7 +691,7 @@ class DrivingContext(object):
 
 
 class StudyProbe(object):
-    """What the drive log (smart_manual_dashboard.drive_log) measures in the world.
+    """What the drive log (manual.drive_log) measures in the world.
 
     The lateral position is the car's offset from the centre of the lane the
     map puts it in, along the lane's right vector; the car ahead is the one
@@ -888,7 +888,7 @@ class World(object):
         while self.player is None:
             if not self.map.get_spawn_points():
                 print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE5 scene.')
+                print('Please add some Vehicle Spawn Point to the map.')
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
@@ -2494,7 +2494,7 @@ def game_loop(args):
         # SUMO's traffic round the car, on a clock of its own that ticks the
         # world in synchronous mode from here on (sumo_traffic.py).
         if args.traffic > 0 and not args.sync:
-            from sumo_traffic import SumoTraffic
+            from traffic.sumo_traffic import SumoTraffic
             town = sim_world.get_map().name.split('/')[-1].replace('_Opt', '')
             try:
                 traffic = SumoTraffic(client, traffic_manager, lambda: world.player, town, args.traffic,

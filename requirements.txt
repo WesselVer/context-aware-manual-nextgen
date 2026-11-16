@@ -1,0 +1,9 @@
+# The CARLA client is not on PyPI for 0.9.16 on Windows: install the wheel that
+# ships with the release first, e.g.
+#   pip install CARLA_0.9.16/PythonAPI/carla/dist/carla-0.9.16-cp312-cp312-win_amd64.whl
+pygame==2.6.1
+numpy>=1.26
+eclipse-sumo==1.28.0
+sumolib==1.28.0
+traci==1.28.0
+lxml>=5

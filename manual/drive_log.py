@@ -1,6 +1,6 @@
 """Logs a participant's drive and scores how they drive.
 
-manual_control_driver.py --participant P07 starts a DriveLog when the
+drive.py --participant P07 starts a DriveLog when the
 manual is first started (B), and from then on calls DriveLog.frame() once a
 frame with the dashboard state and what it measured in the world (the
 probe):
@@ -49,7 +49,7 @@ import os
 import shutil
 import time
 
-from smart_manual_dashboard.tips import TIPS, Tips, _family
+from manual.tips import TIPS, Tips, _family
 
 # The tip ids, to the feature each teaches.
 TIP_FEATURES = {tip['id']: tip['learn'] for tip in TIPS}

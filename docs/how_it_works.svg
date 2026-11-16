@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #d0d5dd; stroke-width: 1.5; }
+      .hot { fill: #eef2fd; stroke: #3E6AE1; stroke-width: 1.5; }
+      .t { font-size: 15px; font-weight: 600; fill: #171a20; }
+      .s { font-size: 12.5px; fill: #5c6370; }
+      .c { font-size: 12px; fill: #3E6AE1; font-family: Consolas, Menlo, monospace; }
+      .l { font-size: 12px; fill: #64748b; }
+      .ln { stroke: #64748b; stroke-width: 1.6; fill: none; marker-end: url(#a); }
+      .lnb { stroke: #64748b; stroke-width: 1.6; fill: none; marker-end: url(#a); marker-start: url(#a); }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="960" height="430" rx="16" fill="#f4f5f7"/>
+
+  <!-- Participant side -->
+  <rect class="box" x="24" y="40" width="190" height="96" rx="12"/>
+  <text class="t" x="40" y="68">Logitech G25</text>
+  <text class="s" x="40" y="90">wheel, pedals, H-shifter,</text>
+  <text class="s" x="40" y="108">red buttons, force feedback</text>
+  <text class="c" x="40" y="127">hardware/</text>
+
+  <rect class="box" x="24" y="170" width="190" height="96" rx="12"/>
+  <text class="t" x="40" y="198">Screen 1</text>
+  <text class="s" x="40" y="220">the road, from the</text>
+  <text class="s" x="40" y="238">driver's seat, with mirrors</text>
+
+  <rect class="hot" x="24" y="300" width="190" height="96" rx="12"/>
+  <text class="t" x="40" y="328">Screen 2</text>
+  <text class="s" x="40" y="350">dashboard and the</text>
+  <text class="s" x="40" y="368">manual's tips</text>
+  <text class="c" x="40" y="387">manual/dashboard.html</text>
+
+  <!-- Drive -->
+  <rect class="box" x="300" y="40" width="260" height="226" rx="12"/>
+  <text class="t" x="318" y="68">The drive</text>
+  <text class="c" x="318" y="88">drive.py</text>
+  <text class="s" x="318" y="114">driver's-seat camera</text>
+  <text class="s" x="318" y="134">drive modes and regen</text>
+  <text class="s" x="318" y="154">cruise, adaptive cruise, autopilot</text>
+  <text class="s" x="318" y="174">context: speed, junctions,</text>
+  <text class="s" x="318" y="192">cars and people near, manoeuvres</text>
+  <text class="s" x="318" y="218">keys for the researcher:</text>
+  <text class="s" x="318" y="236">B start, F free drive, R stop</text>
+
+  <rect class="hot" x="300" y="300" width="260" height="96" rx="12"/>
+  <text class="t" x="318" y="328">Context-aware manual</text>
+  <text class="c" x="318" y="348">manual/tips.py</text>
+  <text class="s" x="318" y="370">12 tips, each at a calm moment,</text>
+  <text class="s" x="318" y="388">each until the driver has done it</text>
+
+  <!-- Simulation -->
+  <rect class="box" x="646" y="40" width="290" height="96" rx="12"/>
+  <text class="t" x="664" y="68">CARLA 0.9.16 server</text>
+  <text class="s" x="664" y="90">Town04: highway loop round a town</text>
+  <text class="s" x="664" y="108">Unreal Engine 4, Epic quality</text>
+  <text class="s" x="664" y="126">50 Hz synchronous clock</text>
+
+  <rect class="box" x="646" y="170" width="290" height="96" rx="12"/>
+  <text class="t" x="664" y="198">SUMO traffic</text>
+  <text class="c" x="664" y="218">traffic/</text>
+  <text class="s" x="664" y="240">~110 cars, EIDM drivers that</text>
+  <text class="s" x="664" y="258">react to the participant's car</text>
+
+  <rect class="box" x="646" y="300" width="290" height="96" rx="12"/>
+  <text class="t" x="664" y="328">Drive log and score</text>
+  <text class="c" x="664" y="348">study_data/P07/</text>
+  <text class="s" x="664" y="370">10 Hz CSV, events, driving score,</text>
+  <text class="s" x="664" y="388">report.html, summary.csv</text>
+
+  <!-- Arrows -->
+  <path class="ln" d="M214,88 L298,88"/>
+  <text class="l" x="226" y="80">steer, pedals</text>
+  <path class="ln" d="M298,110 L214,110"/>
+  <text class="l" x="226" y="126">forces</text>
+  <path class="ln" d="M298,218 L216,218"/>
+  <text class="l" x="232" y="210">camera</text>
+  <path class="ln" d="M430,266 L430,298"/>
+  <text class="l" x="438" y="288">state, context</text>
+  <path class="ln" d="M298,348 L216,348"/>
+  <text class="l" x="226" y="340">tip, status</text>
+  <path class="lnb" d="M562,88 L644,88"/>
+  <text class="l" x="574" y="80">control</text>
+  <path class="lnb" d="M562,218 L644,218"/>
+  <text class="l" x="574" y="210">your car</text>
+  <path class="lnb" d="M790,138 L790,168"/>
+  <text class="l" x="798" y="158">co-simulation</text>
+  <path class="ln" d="M562,252 Q610,252 610,300 Q610,330 644,340"/>
+  <text class="l" x="574" y="290">log</text>
+</svg>
