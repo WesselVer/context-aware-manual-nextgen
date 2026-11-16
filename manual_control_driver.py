@@ -2654,9 +2654,10 @@ def main():
         '--steer-ratio', metavar='R', default=14.0, type=float,
         help='degrees of wheel per degree of front-wheel angle (default: 14)')
     argparser.add_argument(
-        '--traffic', metavar='CARS_PER_HOUR', default=1500, type=int,
-        help='SUMO traffic round the car, this many cars an hour entering the map (about 60 on '
-             'Town04 at once); 0 for none (default: 1500; sumo_traffic.py)')
+        '--traffic', metavar='CARS_PER_HOUR', default=2000, type=int,
+        help='SUMO traffic round the car, this many cars an hour entering the map, most of them '
+             'through traffic on the highway (on Town04 about 110 at once, some 30 within 200 m '
+             'of a car on the highway); 0 for none (default: 2000; sumo_traffic.py)')
     argparser.add_argument(
         '--turn-wheel', action='store_true',
         help='turn the car\'s own steering wheel in the driver\'s view with the steering '

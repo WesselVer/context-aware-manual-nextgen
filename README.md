@@ -42,9 +42,13 @@ another. `--participant P07` logs a user test to `study_data/P07/`, and
 
 ## Traffic
 
-SUMO simulates the traffic on the whole map, about 60 cars on Town04
-(`--traffic` sets how many enter an hour, 1500 by default; `--traffic 0` for
-none). Its drivers follow, brake and change lanes by SUMO's Extended
+SUMO simulates the traffic on the whole map: on Town04 nine in ten cars are
+through traffic on the highway and the rest go anywhere, about 110 at once,
+some 30 within 200 m of you on the highway (`--traffic` sets how many enter
+an hour, 2000 by default; `--traffic 0` for none). The roads' speed limits
+are written into SUMO's network from the town's map
+(`sumo_files/set_speed_limits.py`; CARLA ships it at 50 km/h everywhere).
+Its drivers follow, brake and change lanes by SUMO's Extended
 Intelligent Driver Model, each a little above or below the limit, and your
 car is mirrored into SUMO, so they react to you: they slow down behind you
 and let you merge. Only the cars within 200 m of you exist in CARLA. SUMO

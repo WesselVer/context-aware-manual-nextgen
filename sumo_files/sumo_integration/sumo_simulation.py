@@ -8,7 +8,7 @@
 """ This module is responsible for the management of the sumo simulation.
 
 From CARLA 0.9.16's Co-Simulation/Sumo; changed for context-aware-manual-sim: SumoSimulation takes
-extra SUMO options (extra_args). """
+extra SUMO options (extra_args), and the sublane model's lateral resolution (None: no sublane model). """
 
 # ==================================================================================================
 # -- imports ---------------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ class SumoSimulation(object):
     SumoSimulation is responsible for the management of the sumo simulation.
     """
     def __init__(self, cfg_file, step_length, host=None, port=None, sumo_gui=False, client_order=1,
-                 extra_args=()):
+                 extra_args=(), lateral_resolution=0.25):
         if sumo_gui is True:
             sumo_binary = sumolib.checkBinary('sumo-gui')
         else:
@@ -326,9 +326,9 @@ class SumoSimulation(object):
             traci.start([sumo_binary,
                 '--configuration-file', cfg_file,
                 '--step-length', str(step_length),
-                '--lateral-resolution', '0.25',
                 '--collision.check-junctions'
-            ] + list(extra_args))
+            ] + (['--lateral-resolution', str(lateral_resolution)] if lateral_resolution else [])
+              + list(extra_args))
 
         else:
             logging.info('Connection to sumo server. Host: %s Port: %s', host, port)
