@@ -790,6 +790,9 @@ class World(object):
         self._driver_car_index = -1
         self.remove_leftover_players()
         self._gamma = args.gamma
+        # Clears a place of traffic before the car is put down there (set by
+        # SUMO's traffic, sumo_traffic.py: SumoTraffic.clear_around).
+        self.clear_spot = None
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -881,6 +884,8 @@ class World(object):
         # and it is free; otherwise a random spawn point.
         start = START.get(self.map.name.split('/')[-1])
         if self.player is None and start is not None:
+            if self.clear_spot is not None:
+                self.clear_spot(start)
             self.player = self.world.try_spawn_actor(blueprint, start)
             if self.player is not None:
                 self.show_vehicle_telemetry = False
@@ -892,6 +897,8 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            if self.clear_spot is not None:
+                self.clear_spot(spawn_point)
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
@@ -2500,6 +2507,10 @@ def game_loop(args):
                 traffic = SumoTraffic(client, traffic_manager, lambda: world.player, town, args.traffic,
                                       os.path.join(tempfile.gettempdir(), 'context-manual-sumo'),
                                       pump=pygame.event.pump)
+                # The car was put down before SUMO's warm-up: clear its spot of the
+                # traffic now, and on every new place (World.restart) from here on.
+                traffic.clear_around(world.player.get_transform())
+                world.clear_spot = traffic.clear_around
                 traffic.start()
             except (ImportError, ValueError, OSError, subprocess.CalledProcessError) as error:
                 traffic = None

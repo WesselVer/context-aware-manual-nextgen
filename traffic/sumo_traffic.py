@@ -61,6 +61,15 @@ LOD_MARGIN = 30.0
 LOD_TICKS = 25
 # SUMO runs this long before the drive starts, so the roads are already full.
 WARM_UP_SECONDS = 240.0
+# Before the drive's car is put down (at the start, or for the next participant),
+# SUMO cars are taken off round the spot, so none is in it or runs into the car
+# standing there: any within CLEAR_RADIUS m, and those driving its way from up to
+# CLEAR_BEHIND m behind it to CLEAR_RADIUS m ahead, across CLEAR_SIDE m of road
+# (the carriageway, not the other one). At 100 km/h a car takes 9 s to cover
+# CLEAR_BEHIND, by when SUMO has the drive's car and the traffic brakes for it.
+CLEAR_RADIUS = 30.0
+CLEAR_BEHIND = 250.0
+CLEAR_SIDE = 15.0
 # Collisions in SUMO are logged, not "resolved" by teleporting the cars (which in
 # CARLA made one vanish); a car stuck for 120 s is taken off.
 # A driver waiting at a give-way merge 10 s pushes in (SUMO's default, 180 s, left
@@ -226,6 +235,7 @@ class SumoTraffic(object):
         self.behind_s = 0.0       # how far the clock has fallen behind real time
         self._running = False
         self._thread = None
+        self._lock = threading.Lock()   # a tick, or clear_around, at a time
         self._original = self._world.get_settings()
 
     # -- the clock -------------------------------------------------------------
@@ -251,7 +261,8 @@ class SumoTraffic(object):
         while self._running:
             began = time.perf_counter()
             try:
-                self._tick()
+                with self._lock:
+                    self._tick()
                 self._lap('your car')
             except Exception:  # noqa: BLE001 - the traffic must not end the drive
                 logging.exception('SUMO traffic: tick failed')
@@ -408,6 +419,45 @@ class SumoTraffic(object):
             # Until SUMO has put it on the road, a tick or two after it is added.
             self.twin_ok = False
             logging.debug('SUMO traffic: the drive\'s car: %s', error)
+
+    def clear_around(self, transform):
+        """Takes the SUMO cars off that are in, or coming at, the place transform
+        (CARLA's) where the drive's car is about to be put down (CLEAR_RADIUS);
+        returns how many. Safe while the clock runs: it waits for the tick."""
+        with self._lock:
+            bridge, traci = self._bridge, self._traci
+            offset_x, offset_y = bridge.offset
+            yaw = math.radians(transform.rotation.yaw)
+            fx, fy = math.cos(yaw), math.sin(yaw)
+            here = transform.location
+            twin = self._twin[1] if self._twin is not None else None
+            removed = 0
+            for actor_id in list(self._live):
+                if actor_id == twin:
+                    continue
+                try:
+                    xy = (traci.vehicle.getSubscriptionResults(actor_id) or {}).get(traci.constants.VAR_POSITION)
+                    if xy is None:
+                        xy = traci.vehicle.getPosition(actor_id)
+                    dx, dy = xy[0] - offset_x - here.x, -(xy[1] - offset_y) - here.y
+                    along, side = dx * fx + dy * fy, -dx * fy + dy * fx
+                    if math.hypot(dx, dy) > CLEAR_RADIUS:
+                        if not (-CLEAR_BEHIND < along < CLEAR_RADIUS and abs(side) < CLEAR_SIDE):
+                            continue
+                        # SUMO's angle: clockwise from north; CARLA's yaw is it less 90.
+                        heading = traci.vehicle.getAngle(actor_id) - 90.0
+                        if abs((heading - transform.rotation.yaw + 180.0) % 360.0 - 180.0) > 60.0:
+                            continue   # the other way, on the other carriageway
+                    traci.vehicle.remove(actor_id)
+                except self._traci.exceptions.TraCIException:
+                    continue
+                removed += 1
+                self._live.discard(actor_id)
+                self._subscribed.discard(actor_id)
+                carla_id = self._in_carla.pop(actor_id, None)
+                if carla_id is not None:
+                    self._client.apply_batch_sync([carla.command.DestroyActor(carla_id)], False)
+            return removed
 
     def _twin_report(self):
         if not self.twin_ok:
