@@ -159,7 +159,7 @@ def write_config(net, work, cars_per_hour, seed=42, duration=4 * 3600):
          '-b', '0', '-e', str(int(duration)), '-p', '%.3f' % (3600.0 / (cars_per_hour * (1 - THROUGH_SHARE))),
          '--seed', str(seed), '--vclass', 'passenger', '--prefix', 'car', '--min-distance', '300',
          '--trip-attributes', 'type="cars" departLane="best" departSpeed="max"'],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=work)  # it also writes routes.rou.xml here
     cfg = os.path.join(work, 'traffic.sumocfg')
     with open(cfg, 'w') as f:
         f.write('<configuration>\n  <input>\n    <net-file value="%s"/>\n    <route-files value="%s,%s"/>\n'
