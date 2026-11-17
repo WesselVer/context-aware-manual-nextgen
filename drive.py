@@ -8,8 +8,8 @@
 
 """Allows controlling a vehicle with a keyboard, seen from the driver's seat.
 
-manual_control.py from the CARLA 0.10.0 release, run on CARLA 0.9.16 for its
-Town04, changed to start in a
+manual_control.py from the CARLA 0.10.0 release, run on CARLA 1.0 (Unreal
+Engine 5.8) on its Town04, changed to start in a
 driver's-eye camera, full screen on the primary monitor (--windowed for a
 window of --res). Backspace cycles the cars in DRIVER_EYES (Lincoln MKZ,
 Dodge Charger, Nissan Patrol, Ford taxi, Mini Cooper), each with a tuned eye
@@ -291,14 +291,15 @@ def get_actor_blueprints(world, filter, generation):
 
 # Cars Backspace cycles through, in order, each with a driver's-eye camera
 # position (metres, vehicle frame: x forward, y right, z up) tuned by eye so
-# the windshield, steering wheel and dashboard are all in view; on CARLA
-# 0.9.16 moved 15 cm forward, closer to the wheel.
+# the windshield, steering wheel and dashboard are all in view. CARLA 1.0 has
+# the Unreal Engine 5 cars of 0.10.0, where these were tuned (on 0.9.16's
+# cars they sat 15 cm further forward).
 DRIVER_EYES = [
-    ('vehicle.lincoln.mkz_2020', carla.Location(x=-0.10, y=-0.41, z=1.18)),
-    ('vehicle.dodge.charger_2020', carla.Location(x=-0.25, y=-0.42, z=1.24)),
-    ('vehicle.nissan.patrol_2021', carla.Location(x=-0.20, y=-0.48, z=1.68)),
-    ('vehicle.ford.crown', carla.Location(x=0.15, y=-0.40, z=1.08)),
-    ('vehicle.mini.cooper_s_2021', carla.Location(x=-0.20, y=-0.45, z=1.30)),
+    ('vehicle.lincoln.mkz', carla.Location(x=-0.25, y=-0.41, z=1.18)),
+    ('vehicle.dodge.charger', carla.Location(x=-0.40, y=-0.42, z=1.24)),
+    ('vehicle.nissan.patrol', carla.Location(x=-0.35, y=-0.48, z=1.68)),
+    ('vehicle.taxi.ford', carla.Location(x=0.00, y=-0.40, z=1.08)),
+    ('vehicle.mini.cooper', carla.Location(x=-0.35, y=-0.45, z=1.30)),
 ]
 
 # Where every drive starts, per map: on Town04, the highway's rightmost
@@ -308,22 +309,6 @@ START = {
     'Town04_Opt': carla.Transform(carla.Location(x=-483.8, y=242.5, z=0.5), carla.Rotation(yaw=-90.1)),
     'Town04': carla.Transform(carla.Location(x=-483.8, y=242.5, z=0.5), carla.Rotation(yaw=-90.1)),
 }
-
-# The tyres' longitudinal stiffness, capped per car. At CARLA 0.9.16's stock
-# values (3000-4000) a car slowing to a stop snaps from about 5 to 2 km/h in
-# 60 ms, near 2 g: the jolt felt at the end of a regen stop. It is the same
-# with any brake force, gear or neutral; measured on 2026-11-11. These are the
-# highest caps that remove it. A full stop from 50 km/h takes 0.5-5 m longer
-# (most for the Patrol, which also pulls away slower: 0-50 km/h in 3.6 s, not
-# 2.9), and lifting off at a standstill creeps at about 3.7 km/h, not 2.
-TYRE_LONG_STIFFNESS = {
-    'vehicle.lincoln.mkz_2020': 2100,
-    'vehicle.dodge.charger_2020': 1500,
-    'vehicle.nissan.patrol_2021': 1000,
-    'vehicle.ford.crown': 1000,
-    'vehicle.mini.cooper_s_2021': 2100,
-}
-TYRE_LONG_STIFFNESS_DEFAULT = 1000
 
 
 # Drive modes the paddles step through: the throttle response, the regen
@@ -338,17 +323,22 @@ DRIVE_MODES = [
 ]
 DEFAULT_DRIVE_MODE = 1
 
-# Exposure of the camera views, in stops over CARLA's auto exposure.
-EXPOSURE_COMPENSATION = 1.0
+# The camera look of the driver's view and the mirrors (CARLA 1.0's camera
+# profiles): Cinematic is the one CARLA's own spectator view uses. The
+# sensors' default, AutomotiveHDR, is matched to a dataset camera and looks
+# grey and grainy to a person.
+CAMERA_PROFILE = 'Cinematic'
 
 # Images a second for each mirror.
 MIRROR_HZ = 15.0
 
 # Regenerative braking, which CARLA lacks, as brake applied when the
-# throttle is released: Off, Low, Medium, Maximum. On CARLA 0.9.16 the
-# levels tuned on 0.10.0 (0.12, 0.25, 0.5) felt far too strong; these are a
-# third of them.
-REGEN_BRAKE = [0.0, 0.04, 0.08, 0.16]
+# throttle is released: Off, Low, Medium, Maximum. On CARLA 1.0 the Lincoln
+# coasts at 0.5 m/s2 and these give 1.3, 2.1 and 3.8 m/s2 (from 55 to
+# 35 km/h), as on 0.10.0, where they were tuned. (CARLA 0.9.16's cars
+# already slowed at 3.5 m/s2 with the throttle released, so there they were
+# a third of these.)
+REGEN_BRAKE = [0.0, 0.12, 0.25, 0.5]
 REGEN_NAMES = ['Off', 'Low', 'Medium', 'Maximum']
 
 # Cruise control: the lowest speed it holds, the step of + and -, and the
@@ -790,6 +780,7 @@ class World(object):
         self._driver_car_index = -1
         self.remove_leftover_players()
         self._gamma = args.gamma
+        self._dlss = args.dlss
         # Clears a place of traffic before the car is put down there (set by
         # SUMO's traffic, sumo_traffic.py: SumoTraffic.clear_around).
         self.clear_spot = None
@@ -907,7 +898,7 @@ class World(object):
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
-        self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
+        self.camera_manager = CameraManager(self.player, self.hud, self._gamma, self._dlss)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         self.mirrors = Mirrors(self.player, self.hud.dim, self._gamma)
@@ -957,11 +948,6 @@ class World(object):
         try:
             physics_control = actor.get_physics_control()
             physics_control.use_sweep_wheel_collision = True
-            cap = TYRE_LONG_STIFFNESS.get(actor.type_id, TYRE_LONG_STIFFNESS_DEFAULT)
-            wheels = physics_control.wheels
-            for wheel in wheels:
-                wheel.long_stiff_value = min(wheel.long_stiff_value, cap)
-            physics_control.wheels = wheels
             actor.apply_physics_control(physics_control)
         except Exception:
             pass
@@ -1033,24 +1019,25 @@ class Mirrors(object):
     ]
     # The interior mirror is drawn on the car's own: the centre of its glass
     # in the driver's view (shares of the window, x and y), read off a
-    # screenshot of each car; kept whole on screen, so the Lincoln's and the
-    # Mini's, which the screen's edge cuts, sit a little left of it. The
-    # Crown's is above the view, so it goes in the top right corner.
+    # screenshot of each car on CARLA 1.0; kept whole on screen. The taxi's
+    # is at the top of the view.
     INTERIOR_WIDTH = 0.26
     INTERIOR_CENTRE = {
-        'vehicle.lincoln.mkz_2020': (0.89, 0.322),
-        'vehicle.dodge.charger_2020': (0.825, 0.36),
-        'vehicle.nissan.patrol_2021': (0.775, 0.395),
-        'vehicle.ford.crown': (0.85, 0.07),
-        'vehicle.mini.cooper_s_2021': (0.94, 0.25),
+        'vehicle.lincoln.mkz': (0.80, 0.323),
+        'vehicle.dodge.charger': (0.76, 0.393),
+        'vehicle.nissan.patrol': (0.735, 0.413),
+        'vehicle.taxi.ford': (0.90, 0.13),
+        'vehicle.mini.cooper': (0.86, 0.305),
     }
 
     # The door mirror's glass in the driver's view, as a polygon (pixels at
-    # 1920x1200, read off a screenshot): the mirror's image fills the car's
-    # own glass, its frame round it. Other cars get a plain rectangle.
+    # 1920x1200, read off a screenshot on CARLA 1.0): the mirror's image
+    # fills the car's own glass, its frame round it. Other cars get a plain
+    # rectangle.
     DOOR_GLASS = {
-        'vehicle.lincoln.mkz_2020': [(82, 787), (145, 707), (200, 702), (370, 690), (400, 697), (422, 735),
-                                     (429, 780), (417, 820), (400, 827), (110, 835), (92, 825)],
+        'vehicle.lincoln.mkz': [(232, 720), (250, 687), (277, 657), (300, 650), (367, 645), (450, 643),
+                                (480, 647), (500, 663), (508, 703), (507, 737), (493, 755), (367, 758),
+                                (247, 755), (235, 743)],
     }
 
     def __init__(self, vehicle, screen, gamma):
@@ -1095,7 +1082,8 @@ class Mirrors(object):
             bp.set_attribute('sensor_tick', str(1.0 / MIRROR_HZ))
             if bp.has_attribute('gamma'):
                 bp.set_attribute('gamma', str(gamma))
-            # No extra exposure: they look out at the bright road, not the cabin.
+            if bp.has_attribute('post_process_profile'):
+                bp.set_attribute('post_process_profile', CAMERA_PROFILE)
             sensor = world.spawn_actor(bp, mounts[name], attach_to=vehicle, attachment_type=carla.AttachmentType.Rigid)
             weak_self = weakref.ref(self)
             sensor.listen(lambda image, name=name: Mirrors._on_image(weak_self, name, image))
@@ -2242,7 +2230,7 @@ class RadarSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, parent_actor, hud, gamma_correction):
+    def __init__(self, parent_actor, hud, gamma_correction, dlss=0):
         self.sensor = None
         self.surface = None
         self.array = None
@@ -2298,12 +2286,17 @@ class CameraManager(object):
                 bp.set_attribute('image_size_y', str(hud.dim[1]))
                 if bp.has_attribute('gamma'):
                     bp.set_attribute('gamma', str(gamma_correction))
-                # The auto exposure meters the bright road and sky, which
-                # leaves the cabin dark; one stop more shows the interior.
-                if bp.has_attribute('exposure_compensation'):
-                    bp.set_attribute('exposure_compensation', str(EXPOSURE_COMPENSATION))
+                if bp.has_attribute('post_process_profile'):
+                    bp.set_attribute('post_process_profile', CAMERA_PROFILE)
+                # NVIDIA DLSS renders the view at a share of its pixels and
+                # upscales it: at Epic, 4 ms less a tick with no visible loss.
+                if item[0] == 'sensor.camera.rgb' and dlss and bp.has_attribute('enable_dlss'):
+                    bp.set_attribute('enable_dlss', 'true')
+                    bp.set_attribute('dlss_screen_percentage', str(dlss))
+                # CARLA 1.0's cameras lack some of these (chromatic aberration).
                 for attr_name, attr_value in item[3].items():
-                    bp.set_attribute(attr_name, attr_value)
+                    if bp.has_attribute(attr_name):
+                        bp.set_attribute(attr_name, attr_value)
             elif item[0].startswith('sensor.lidar'):
                 self.lidar_range = 50
 
@@ -2636,7 +2629,12 @@ def main():
         help='actor role name (default: "hero")')
     argparser.add_argument(
         '--gamma', default=2.2, type=float,
-        help='Gamma correction of the camera (default: 2.2; 1.0 suited CARLA 0.10.0 and is far too dark here)')
+        help='gamma correction of the camera, on servers whose cameras take one (CARLA 1.0\'s do not: '
+             'CAMERA_PROFILE sets their look) (default: 2.2)')
+    argparser.add_argument(
+        '--dlss', metavar='PERCENT', default=67, type=int,
+        help='render the driver\'s view at this share of its resolution with NVIDIA DLSS, '
+             'upscaled; 0 for off (default: 67)')
     argparser.add_argument(
         '--sync', action='store_true',
         help='Activate synchronous mode execution')
@@ -2662,8 +2660,8 @@ def main():
         '--no-wheel', action='store_const', const=None, dest='wheel',
         help='ignore any steering wheel')
     argparser.add_argument(
-        '--steer-ratio', metavar='R', default=14.0, type=float,
-        help='degrees of wheel per degree of front-wheel angle (default: 14)')
+        '--steer-ratio', metavar='R', default=13.0, type=float,
+        help='degrees of wheel per degree of front-wheel angle (default: 13)')
     argparser.add_argument(
         '--traffic', metavar='CARS_PER_HOUR', default=2000, type=int,
         help='SUMO traffic round the car, this many cars an hour entering the map, most of them '

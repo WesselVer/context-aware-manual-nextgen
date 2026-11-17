@@ -16,7 +16,9 @@ CARLA's Traffic Manager (the autopilot of the drive's car) lives in this
 process, so it ticks with the world, in step with it: a fixed time step,
 instead of whatever time passed since the last frame.
 
-The bridge (traffic/sumo_integration) is CARLA 0.9.16's Co-Simulation/Sumo; the
+The bridge (traffic/sumo_integration) is CARLA 0.9.16's Co-Simulation/Sumo
+(CARLA 1.0 ships none; this one runs unchanged on it, and Town04's road network,
+so its SUMO network, is the same in both); the
 way it is run (level of detail, one batch of poses per tick) and the drivers'
 parameters follow Coupled CARLA (github.com/bazilinskyy/coupled-carla), both MIT.
 
@@ -42,10 +44,12 @@ CAR_TYPES = os.path.join(SUMO_DIR, 'cars.add.xml')
 # Seconds of simulated time per tick, for CARLA and SUMO. The autopilot (the
 # Traffic Manager) steers once a tick, and the fewer ticks, the more it weaves:
 # on Town04's highway at 90 km/h its yaw wobbled 1.3 deg/s at 20 Hz, 0.6 at
-# 50 Hz and 0.2 at the ~160 Hz of an idle server (2026-11-16). A tick with the
-# drive's cameras and the traffic took 8 ms (12 ms at the 90th percentile), so
-# 50 Hz keeps real time.
-STEP = 0.02
+# 50 Hz and 0.2 at the ~160 Hz of an idle server (2026-11-16, CARLA 0.9.16).
+# On CARLA 1.0 a synchronous tick takes at least 15 ms, even of an empty world,
+# and with the drive's cameras (DLSS on, server -RenderOffScreen) and the
+# traffic about 21 ms, so 50 Hz fell to 0.9x real time; 40 Hz keeps it. The
+# autopilot weaves no more at 40 than at 50 Hz there (measured 2026-11-17).
+STEP = 0.025
 # How often the clock prints how it keeps up.
 REPORT_SECONDS = 10.0
 # The traffic: this share is through traffic on the highway (highway_routes),

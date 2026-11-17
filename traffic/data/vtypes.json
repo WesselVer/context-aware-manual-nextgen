@@ -6,89 +6,93 @@
         "vClass": "passenger"
     },
     "carla_blueprints": {
-        "vehicle.audi.a2": {
+        "vehicle.ambulance.ford": {
+            "vClass": "emergency",
+            "guiShape": "emergency"
+        },
+        "vehicle.bh.crossbike": {
+            "vClass": "bicycle",
+            "guiShape": "bicycle"
+        },
+        "vehicle.carlacola.actors": {
+            "vClass": "passenger",
+            "guiShape": "truck"
+        },
+        "vehicle.diamondback.century": {
+            "vClass": "bicycle",
+            "guiShape": "bicycle"
+        },
+        "vehicle.dodge.charger": {
             "vClass": "passenger"
         },
-        "vehicle.audi.tt": {
+        "vehicle.dodgecop.charger": {
+            "vClass": "authority",
+            "guiShape": "police"
+        },
+        "vehicle.firetruck.actors": {
+            "vClass": "emergency",
+            "guiShape": "firebrigade"
+        },
+        "vehicle.fuso.mitsubishi": {
+            "vClass": "bus",
+            "guiShape": "bus"
+        },
+        "vehicle.gazelle.omafiets": {
+            "vClass": "bicycle",
+            "guiShape": "bicycle"
+        },
+        "vehicle.harley-davidson.low_rider": {
+            "vClass": "motorcycle",
+            "guiShape": "motorcycle"
+        },
+        "vehicle.kawasaki.ninja": {
+            "vClass": "motorcycle",
+            "guiShape": "motorcycle"
+        },
+        "vehicle.kia.niro": {
             "vClass": "passenger"
         },
-        "vehicle.bmw.grandtourer": {
+        "vehicle.lincoln.mkz": {
             "vClass": "passenger"
         },
-        "vehicle.chevrolet.impala": {
-            "vClass": "passenger"
-        },
-        "vehicle.citroen.c3": {
-            "vClass": "passenger"
-        },
-        "vehicle.jeep.wrangler_rubicon": {
-            "vClass": "passenger"
-        },
-        "vehicle.lincoln.mkz_2017": {
-            "vClass": "passenger"
-        },
-        "vehicle.mercedes.coupe": {
-            "vClass": "passenger"
-        },
-        "vehicle.mini.cooper_s": {
-            "vClass": "passenger"
-        },
-        "vehicle.ford.mustang": {
-            "vClass": "passenger"
-        },
-        "vehicle.nissan.micra": {
+        "vehicle.mini.cooper": {
             "vClass": "passenger"
         },
         "vehicle.nissan.patrol": {
             "vClass": "passenger"
         },
-        "vehicle.seat.leon": {
-            "vClass": "passenger"
-        },
-        "vehicle.volkswagen.t2": {
+        "vehicle.sprinter.mercedes": {
             "vClass": "passenger",
             "guiShape": "passenger/van"
         },
-        "vehicle.dodge.charger_police": {
-            "vClass": "authority",
-            "guiShape": "police"
-        },
-        "vehicle.micro.microlino": {
-            "vClass": "evehicle"
-        },
-        "vehicle.toyota.prius": {
-            "vClass": "evehicle"
-        },
-        "vehicle.tesla.cybertruck": {
-            "vClass": "evehicle"
+        "vehicle.taxi.ford": {
+            "vClass": "passenger"
         },
         "vehicle.tesla.model3": {
-            "vClass": "evehicle"
+            "vClass": "passenger"
         },
-        "vehicle.audi.etron": {
-            "vClass": "evehicle"
+        "vehicle.ue4.audi.tt": {
+            "vClass": "passenger"
         },
-        "vehicle.carlamotors.carlacola": {
-            "vClass": "truck",
-            "guiShape": "truck"
+        "vehicle.ue4.chevrolet.impala": {
+            "vClass": "passenger"
+        },
+        "vehicle.ue4.ford.crown": {
+            "vClass": "passenger"
+        },
+        "vehicle.ue4.ford.mustang": {
+            "vClass": "passenger"
+        },
+        "vehicle.ue4.mercedes.ccc": {
+            "vClass": "passenger"
+        },
+        "vehicle.vespa.zx125": {
+            "vClass": "moped",
+            "guiShape": "moped"
         },
         "vehicle.yamaha.yzf": {
-            "vClass": "motorcycle"
-        },
-        "vehicle.harley-davidson.low_rider": {
-            "vClass": "motorcycle"
-        },
-        "vehicle.kawasaki.ninja": {
-            "vClass": "motorcycle"
-        },
-        "vehicle.gazelle.omafiets": {
-            "vClass": "bicycle"
-        },
-        "vehicle.diamondback.century": {
-            "vClass": "bicycle"
-        },
-        "vehicle.bh.crossbike": {
-            "vClass": "bicycle"
+            "vClass": "motorcycle",
+            "guiShape": "motorcycle"
         }
     }
 }

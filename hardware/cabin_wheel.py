@@ -1,6 +1,6 @@
 """The car's own steering wheel, turned in the driver's view.
 
-CARLA 0.9.16's cars have a steering wheel that never turns: it is part of
+CARLA's cars (0.9.16 and 1.0 alike) have a steering wheel that never turns: it is part of
 the body mesh, with no bone or component the Python API can move. So it is
 turned in the image instead. Once per car, a depth image from the driver's
 camera finds which pixels are the wheel (find_wheel); every frame, those

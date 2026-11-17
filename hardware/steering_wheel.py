@@ -4,8 +4,8 @@ Reads steering, throttle, brake and clutch from the wheel through pygame and
 drives its force feedback through SDL's haptic API, called with ctypes on the
 SDL2 library pygame itself loaded (pygame does not expose haptics).
 
-Steering goes through a steering ratio (STEER_RATIO, 14:1 by default): the
-900-degree wheel turns the front wheels 32 degrees each way, instead of
+Steering goes through a steering ratio (STEER_RATIO, 13:1 by default): the
+900-degree wheel turns the front wheels 35 degrees each way, instead of
 CARLA's full 70 at a quarter turn. Real sedans are about 15:1, which feels
 sluggish without a car's motion around you.
 
@@ -88,12 +88,14 @@ PEDAL_DEADZONE = 0.03
 # Lock-to-lock rotation of the wheel, as set in G HUB.
 WHEEL_RANGE = 900.0
 # Degrees of wheel per degree of front-wheel angle; picked by driving it
-# (a real sedan is about 15). On CARLA 0.10.0, 10 and then 8 felt slow and
-# 7 was right; on CARLA 0.9.16, 7 felt twice too sensitive.
-STEER_RATIO = 14.0
+# (a real sedan is about 15). On CARLA 0.9.16, 14 was right with G HUB at a
+# true 900 degrees (the 7 of CARLA 0.10.0 was tuned with G HUB set to far
+# less). CARLA 1.0's Lincoln yaws about 10% less for the same steer than
+# 0.9.16's (measured at 50 km/h), so 13 gives the same feel.
+STEER_RATIO = 13.0
 
 # The steering forces' strength on top of --ffb-gain: on CARLA 0.9.16 the
-# forces tuned on 0.10.0 felt too light.
+# forces tuned on 0.10.0 felt too light; kept for 1.0.
 FFB_STRENGTH = 1.6
 
 # CARLA's default steering curve: the share of the steer that reaches the

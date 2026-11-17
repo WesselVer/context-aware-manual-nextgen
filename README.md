@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/logo.svg" width="48" alt="" align="top">&nbsp;Context-aware manual</h1>
+<h1 align="center"><img src="docs/logo.svg" width="48" alt="" align="top">&nbsp;Context-aware manual <sup>next gen</sup></h1>
 
 <p align="center">
   <b>A driving-simulator user study of an AI vehicle manual that teaches you the car while you drive.</b><br>
@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img alt="CARLA 0.9.16" src="https://img.shields.io/badge/CARLA-0.9.16%20(UE4)-0f172a">
+  <img alt="CARLA 1.0" src="https://img.shields.io/badge/CARLA-1.0%20(UE%205.8)-0f172a">
   <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white">
   <img alt="SUMO traffic" src="https://img.shields.io/badge/traffic-SUMO-38bdf8">
   <img alt="Logitech G25" src="https://img.shields.io/badge/wheel-Logitech%20G25-64748b">
@@ -22,8 +22,13 @@
   <a href="#the-g25">The G25</a> ·
   <a href="#traffic">Traffic</a> ·
   <a href="#data-and-the-driving-score">Data</a> ·
-  <a href="#project-layout">Project layout</a>
+  <a href="#from-0916-to-10">From 0.9.16 to 1.0</a>
 </p>
+
+This is the study's simulator on **CARLA 1.0**, which runs on Unreal Engine 5.8: the same drive, manual, wheel,
+dashboard, traffic and driving score as [context-aware-manual-sim](https://github.com/WesselVer/context-aware-manual-sim)
+(CARLA 0.9.16, Unreal Engine 4), on the same Town04, with Unreal Engine 5's lighting. The study's project started on
+CARLA 0.10.0 (Unreal Engine 5, no Town04) and moved to 0.9.16 for Town04's highway; 1.0 has both.
 
 The study asks **how context-aware personalisation influences the acceptance of an AI-powered vehicle manual**.
 A participant drives an electric car they have never driven before in [CARLA](https://carla.org), from the
@@ -33,10 +38,10 @@ autopilot, drive modes, one-pedal driving), each only when the moment is right: 
 straight, or on a quiet road, never at a junction, in busy traffic or in the middle of a manoeuvre. The drive ends
 with a scored minute or two of free driving, and the questionnaires before and after run in MS Forms.
 
-![The participant's view: Town04's highway from the driver's seat of the Lincoln, with SUMO traffic and working mirrors](docs/img/driver_view.jpg)
+![The participant's view: Town04's highway from the driver's seat of the Lincoln on CARLA 1.0, with SUMO traffic ahead](docs/img/driver_view.jpg)
 
-*Screen 1: the participant's view on Town04's highway, from the driver's seat, with SUMO traffic around and
-working mirrors.*
+*Screen 1: the participant's view on Town04's highway on CARLA 1.0, from the driver's seat, with SUMO traffic ahead.
+While driving, the door and interior mirrors show the road behind (this picture is the driver's camera alone).*
 
 ---
 
@@ -45,13 +50,14 @@ working mirrors.*
 - [Quick start](#quick-start): [what you need](#what-you-need), [install](#install), [drive](#drive)
 - [Running a user test](#running-a-user-test): [the protocol](#the-protocol), [the researcher's keys](#the-researchers-keys), [the tips](#the-tips)
 - [The G25](#the-g25) · [Traffic](#traffic) · [Data and the driving score](#data-and-the-driving-score)
-- [Known limits](#known-limits) · [Project layout](#project-layout) · [Credits and licences](#credits-and-licences)
+- [From 0.9.16 to 1.0](#from-0916-to-10) · [Known limits](#known-limits) · [Project layout](#project-layout) · [Credits and licences](#credits-and-licences)
 
 ## What you get
 
 | | |
 |---|---|
 | **Driver's seat** | CARLA's `manual_control.py`, rebuilt for a study: a driver's-eye camera tuned per car (Lincoln MKZ by default), interior and door mirrors, a steering wheel that turns in the cabin, full screen on screen 1. |
+| **Unreal Engine 5 look** | Lumen lighting and ray-traced shadows at Epic quality, through CARLA 1.0's `Cinematic` camera profile, with NVIDIA DLSS keeping the frame time down. |
 | **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that you can override with the pedals and wheel. |
 | **Logitech G25** | Steering, pedals and the H-shifter as an automatic's P/R/N/D, with force feedback; the shifter's red buttons are cruise, adaptive cruise and autopilot. The keyboard works beside it. |
 | **Second-screen dashboard** | A production-style dashboard in a browser window on screen 2: speed, gear, assists with a lane view of the car ahead, and the manual's tips with a drawing of the button to press. |
@@ -88,36 +94,47 @@ themselves are simulated (CARLA has no regen or cruise control, so the drive scr
 ## Quick start
 
 ### What you need
-- **Windows 10/11** with a gaming GPU (CARLA runs at Epic quality; developed on an RTX 5090).
+- **Windows 11** with an NVIDIA RTX GPU (CARLA 1.0 runs at Epic quality with ray tracing, and the drive uses DLSS;
+  developed on an RTX 5090). About 50 GB free for CARLA and its maps.
 - **Two screens**: screen 1 for the road, screen 2 for the dashboard. One screen works too, with the dashboard in
   a window.
 - **A Logitech G25** with its drivers installed (optional: without one, the keyboard drives the car).
 - **Microsoft Edge or Google Chrome** for the dashboard window.
 
 ### Install
-1. Download [CARLA 0.9.16 for Windows](https://github.com/carla-simulator/carla/releases/tag/0.9.16) and unpack it,
-   e.g. to `C:\CARLA\CARLA_0.9.16`. Town04 is in the base package.
-2. Clone this repository and make a Python 3.12 environment (the CARLA release ships a client wheel for 3.12 only):
+1. Download CARLA 1.0 for Windows from its [release page](https://github.com/carla-simulator/carla/releases/tag/1.0):
+   `CARLA_1.0.zip` (14 GB) and the `AdditionalMaps_1.0.tar.gz` content pack (7 GB), which holds Town04. Unpack the
+   zip, e.g. to `C:\CARLA\CARLA_1.0`, and install the pack into it:
 
    ```bash
-   git clone https://github.com/WesselVer/context-aware-manual-sim.git
-   cd context-aware-manual-sim
+   cd C:\CARLA\CARLA_1.0
+   python Tools\carla_pack.py install AdditionalMaps_1.0.tar.gz --server .
+   ```
+
+2. Clone this repository and make a Python environment (CARLA 1.0 ships a client wheel for Python 3.10 to 3.15;
+   3.12 is what this was built with):
+
+   ```bash
+   git clone https://github.com/WesselVer/context-aware-manual-nextgen.git
+   cd context-aware-manual-nextgen
    py -3.12 -m venv .venv
    .venv\Scripts\activate
-   pip install C:\CARLA\CARLA_0.9.16\PythonAPI\carla\dist\carla-0.9.16-cp312-cp312-win_amd64.whl
+   pip install C:\CARLA\CARLA_1.0\PythonAPI\carla\dist\carla-1.0-cp312-cp312-win_amd64.whl
    pip install -r requirements.txt
    ```
 
    `eclipse-sumo` brings SUMO itself, so no separate SUMO install is needed.
 
 ### Drive
-Start the server and wait until its window shows a map (about 40 s):
+Start the server. It runs without a window of its own (the participant only sees the drive's window), and is
+ready when port 2000 answers, about 20 s:
 
 ```bash
-C:\CARLA\CARLA_0.9.16\CarlaUE4.exe -windowed -ResX=1280 -ResY=720
+C:\CARLA\CARLA_1.0\CarlaUnreal.exe -RenderOffScreen
 ```
 
-Then the drive, from this folder:
+The first time, Windows Firewall asks whether CarlaUnreal may use the network: the drive talks to it on this PC
+only, so Cancel is enough. Then the drive, from this folder:
 
 ```bash
 python drive.py --tm-port 8010
@@ -134,6 +151,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 | `--windowed --res 1920x1080` | the road in a window instead of full screen |
 | `--free-drive-seconds 120` | the longest the scored free drive runs |
 | `--record` | also record the drive with CARLA's recorder |
+| `--dlss 0` | the driver's view without DLSS (default: rendered at 67% and upscaled) |
 | `--no-wheel`, `--no-dashboard` | ignore the G25, or run without the dashboard |
 | `--dashboard-layout full` | the older, fuller dashboard (J swaps them while driving) |
 
@@ -205,8 +223,9 @@ Highway ramps count as junctions. The rules and the tips' wording are in [`manua
 | Clutch | cuts the power (CARLA has no clutch) |
 
 An assist's red button switches it on, resumes it after braking, and switches it off. Braking, leaving D, or
-turning the wheel firmly against the autopilot hands the car back. The steering ratio is 14:1, close to a real
-car's. Without a G25 the keyboard drives the car (WASD or the arrows; K for the autopilot).
+turning the wheel firmly against the autopilot hands the car back. The steering ratio is 13:1, close to a real
+car's, with the wheel at 900 degrees in G HUB. Without a G25 the keyboard drives the car (WASD or the arrows; K for
+the autopilot).
 
 ![The A3 controls handout: the steering wheel, the shifter with its red assist buttons, the pedals, and how to use cruise control, adaptive cruise and the autopilot](docs/img/controls_handout.jpg)
 
@@ -221,10 +240,11 @@ hour, 2000 by default; `--traffic 0` for none). The roads' speed limits are writ
 town's map ([`traffic/set_speed_limits.py`](traffic/set_speed_limits.py); CARLA ships it at 50 km/h everywhere).
 Its drivers follow, brake and change lanes by SUMO's Extended Intelligent Driver Model, each a little above or below
 the limit, and your car is mirrored into SUMO, so they react to you. Only the cars within 200 m of you exist in
-CARLA. SUMO also runs the traffic lights. The bridge is CARLA's own co-simulation, and the way it runs and the
-drivers' parameters follow [Coupled CARLA](https://github.com/bazilinskyy/coupled-carla).
+CARLA, drawn from CARLA 1.0's cars, a van and a truck ([`traffic/cars.add.xml`](traffic/cars.add.xml)). SUMO also
+runs the traffic lights. The bridge is CARLA 0.9.16's co-simulation (1.0 ships none; it runs unchanged), and the way
+it runs and the drivers' parameters follow [Coupled CARLA](https://github.com/bazilinskyy/coupled-carla).
 
-With traffic, CARLA runs in synchronous mode on a 50 Hz clock that keeps real time, ticked by a thread of the
+With traffic, CARLA runs in synchronous mode on a 40 Hz clock that keeps real time, ticked by a thread of the
 drive; the window keeps 60 fps. The autopilot steers once a tick, so this clock also steadies it. The drive prints
 a line every 10 s saying how the clock keeps up (`1.00x real time`). A drive that is killed rather than closed
 leaves the server in synchronous mode with its traffic frozen; the next drive puts it back.
@@ -253,10 +273,31 @@ CARLA's measurements, and the total is their mean:
 
 `study_data/` is in `.gitignore`: participant data stays on the lab PC.
 
+## From 0.9.16 to 1.0
+
+| CARLA 0.9.16 (Unreal Engine 4) | CARLA 1.0 (Unreal Engine 5.8) |
+|---|---|
+| ![The driver's view on CARLA 0.9.16](docs/img/driver_view_0916.jpg) | ![The driver's view on CARLA 1.0](docs/img/driver_view.jpg) |
+
+Town04's road network is the same file in both, byte for byte, so the start, the speed limits and SUMO's network
+carry over. What changed, each measured on the Lincoln (2026-11-17) and set to drive like the 0.9.16 version:
+
+| | 0.9.16 | 1.0 | So |
+|---|---|---|---|
+| Cars | `vehicle.lincoln.mkz_2020`, ... | `vehicle.lincoln.mkz`, ... (0.10.0's) | names and driver's eyes as tuned on 0.10.0; mirrors placed anew |
+| Camera look | gamma 2.2, +1 stop exposure | no gamma or exposure setting; camera profiles | the `Cinematic` profile (the default looks grey and grainy) |
+| Coasting, throttle released | 3.5 m/s² | 0.5 m/s² | regen back to 0.10.0's levels: 1.3, 2.1, 3.8 m/s² |
+| Jolt at the end of a stop | near 2 g, so tyre stiffness was capped | none: braking stays smooth to a standstill | no cap (Chaos has no such setting) |
+| Yaw at 50 km/h per steer | 8.2 °/s at 0.03 | 7.3 °/s at 0.03 | steering ratio 13:1 instead of 14:1 |
+| 0-50 / 0-100 km/h, full throttle | 2.9 / 7.5 s | 2.1 / 8.6 s | left as is |
+| A synchronous tick | ~8 ms with the cameras and traffic | at least 15 ms, ~21 ms with them | server `-RenderOffScreen`, DLSS on the driver's view, traffic clock 40 Hz |
+
 ## Known limits
-- **Judder at Epic quality** when another program uses the GPU (a VM, a video call): the HUD counts the server's
-  ticks, not the camera images, so it can read 60 fps while the view stutters. Close the other program;
-  `-quality-level=Low` on the server is the fallback.
+- **A short stall about once a minute** on CARLA 1.0: the server freezes for 0.4-1 s every 60 s, even with an empty
+  world and no client cameras. It comes with rendering (gone with `-nullrhi`), not with garbage collection, and
+  CARLA 0.9.16 does not have it. Not solved yet.
+- **The autopilot in town can wait for good** behind a SUMO car at a junction, which waits too, probably for the
+  copy of your car in SUMO. Seen once, with the autopilot on in town; not looked into yet.
 - **Port 8000** is reserved by Windows on many PCs, hence `--tm-port 8010`.
 - **Traffic on Town04 only**: the SUMO network in `traffic/Town04/` is the only one shipped. Other maps (`--map`)
   drive with `--traffic 0`.
@@ -274,15 +315,16 @@ hardware/
   steering_wheel.py        the G25: axes, buttons, H-shifter, force feedback
   cabin_wheel.py           the steering wheel that turns in the cabin
 traffic/
-  sumo_traffic.py          SUMO traffic round the car, on a 50 Hz clock
+  sumo_traffic.py          SUMO traffic round the car, on a 40 Hz clock
   sumo_integration/        CARLA 0.9.16's SUMO co-simulation bridge
   Town04/, cars.add.xml    the SUMO network and the drivers' models
 study/                   the controls handout for participants (A3, SVG and PDF)
 docs/                    the images in this README
 ```
 
-The project started on CARLA 0.10.0 (Unreal Engine 5) and moved to 0.9.16 (Unreal Engine 4) for Town04's highway;
-the tuning comments in the code that mention 0.10.0 explain why values changed.
+The history of the project is in this repository's commits: it started on CARLA 0.10.0, moved to 0.9.16 in
+[context-aware-manual-sim](https://github.com/WesselVer/context-aware-manual-sim), and came to 1.0 here. The tuning
+comments in the code say which version a value was measured on.
 
 ## Credits and licences
 The code in this repository is released under the [MIT License](LICENSE). `drive.py` started from CARLA's
