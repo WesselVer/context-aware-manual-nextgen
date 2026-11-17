@@ -293,9 +293,14 @@ carry over. What changed, each measured on the Lincoln (2026-11-17) and set to d
 | A synchronous tick | ~8 ms with the cameras and traffic | at least 15 ms, ~21 ms with them | server `-RenderOffScreen`, DLSS on the driver's view, traffic clock 40 Hz |
 
 ## Known limits
-- **A short stall about once a minute** on CARLA 1.0: the server freezes for 0.4-1 s every 60 s, even with an empty
-  world and no client cameras. It comes with rendering (gone with `-nullrhi`), not with garbage collection, and
-  CARLA 0.9.16 does not have it. Not solved yet.
+- **A short stall about once a minute** on CARLA 1.0: the server freezes for 0.4-1 s every 60 s. What is known
+  (2026-11-17, RTX 5090): it happens on Town04 even with every map layer unloaded and no client at all, weaker on
+  Town03 and not on Town10HD, nor on CARLA 0.10.0 or 0.9.16, and not with `-nullrhi`. In it the server uses no CPU
+  and the GPU idles: Unreal's RHI threads wait inside NVIDIA's Direct3D 12 driver (in `ExecuteCommandLists`,
+  command-list resets, texture commits), and the game thread waits for them. Not garbage collection (its interval
+  changes nothing), not the sky light's capture, the street or traffic lights, or Windows' power throttling; a
+  visible server window helps an idle server but not the drive. Unreal's console variables could not be set on
+  the shipping build to test more. Not solved; worth reporting to CARLA with these findings.
 - **The autopilot in town can wait for good** behind a SUMO car at a junction, which waits too, probably for the
   copy of your car in SUMO. Seen once, with the autopilot on in town; not looked into yet.
 - **Port 8000** is reserved by Windows on many PCs, hence `--tm-port 8010`.
