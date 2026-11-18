@@ -48,13 +48,14 @@ Adaptive cruise control (ACC) is the second red button, from 20 km/h like
 plain cruise. It speeds up to 30 km/h, or keeps the current speed when that
 is faster, follows the car ahead in your lane at the time gap set on the d-pad
 (up longer, down shorter)
-(1.0, 1.5, 2.0 or 2.5 s; 1.5 s to start), and brakes, down to a stop. After
+(0.6, 1.0, 1.5 or 2.5 s; 1.5 s to start), and brakes, down to a stop. After
 more than 3 s stopped it waits for its button or the throttle. The same
 speed buttons, standby and resume apply. Pressing one assist's button while
 the other is on switches over to it.
 
 Autopilot (the wheel's autopilot button, or K) drives the car around the map
-on CARLA's Traffic Manager, at 60 km/h to start and in Eco; the wheel
+on CARLA's Traffic Manager, at the car's speed (30 km/h at the least) and
+in Eco; the wheel
 turns with the car. + and - change its speed, d-pad up and down its following
 distance. Braking, leaving D, or turning the wheel against it (it resists
 at first) hands the car back, in the drive mode it had before. The
@@ -361,8 +362,8 @@ CRUISE_KI = 0.03
 # faster one), time gaps for gap 1-4, the distance kept at a standstill, and
 # how far ahead it looks.
 ACC_START_KMH = 30
-ACC_GAPS = [1.0, 1.5, 2.0, 2.5]
-ACC_DEFAULT_GAP = 2
+ACC_GAPS = [0.6, 1.0, 1.5, 2.5]
+ACC_DEFAULT_GAP = 3
 ACC_STANDSTILL_M = 5.0
 ACC_RANGE_M = 100.0
 # How hard it closes a gap error (m/s of speed per m), the brake per km/h
@@ -376,16 +377,22 @@ ACC_CLOSING_BRAKE_MS2 = 1.0
 ACC_BRAKE_PER_KMH = 0.04
 ACC_FULL_BRAKE_MS2 = 9.0
 ACC_MAX_BRAKE = 0.8
+# Ordinary following stays comfortable: at most this brake, reached at
+# ACC_BRAKE_RISE a second. When stopping in time takes more than
+# ACC_URGENT_MS2, both limits are off.
+ACC_COMFORT_BRAKE = 0.3
+ACC_BRAKE_RISE = 0.4
+ACC_URGENT_MS2 = 1.8
 # Stopped longer than this, it waits for its button or the throttle to go again.
 ACC_AUTO_GO_SECONDS = 3.0
 
-# Autopilot: its starting speed and range (km/h), the drive mode it drives
-# in, and the takeover: the brake pedal past AUTOPILOT_BRAKE, or the wheel
+# Autopilot: the lowest speed it starts at (it keeps a faster one) and its
+# range (km/h), the drive mode it drives in, and the takeover: the brake pedal past AUTOPILOT_BRAKE, or the wheel
 # held AUTOPILOT_TAKEOVER_DEG away from the car's steering for
 # AUTOPILOT_TAKEOVER_SECONDS without coming back.
-AUTOPILOT_KMH = 60
+AUTOPILOT_START_KMH = 30
 AUTOPILOT_MIN_KMH = 10
-AUTOPILOT_MAX_KMH = 90
+AUTOPILOT_MAX_KMH = CRUISE_MAX_KMH
 AUTOPILOT_DRIVE_MODE = 0
 AUTOPILOT_BRAKE = 0.1
 AUTOPILOT_TAKEOVER_DEG = 40.0
@@ -430,6 +437,8 @@ class CruiseControl(object):
         self.gap = ACC_DEFAULT_GAP
         # (gap in m, speed in km/h) of the car ahead, or None; set by the caller.
         self.lead = None
+        # The brake it asked for last, which ordinary following raises gradually.
+        self._brake = 0.0
         # Stopped behind a car for longer than ACC_AUTO_GO_SECONDS.
         self.waiting = False
         self._stopped_for = 0.0
@@ -508,6 +517,7 @@ class CruiseControl(object):
         self.set_speed = max(CRUISE_MIN_KMH, min(CRUISE_MAX_KMH, target))
         # Starts from the throttle in use, so engaging does not lurch.
         self._integral = throttle
+        self._brake = 0.0
         self._stopped_for = 0.0
         return '%s %d km/h' % (self.name, self.set_speed)
 
@@ -532,6 +542,7 @@ class CruiseControl(object):
         """Adaptive cruise: (target km/h, brake) from the set speed and the car ahead."""
         target = float(self.set_speed)
         brake = 0.0
+        urgent = False
         if self.lead is not None:
             gap, lead_kmh = self.lead
             v, v_lead = kmh / 3.6, lead_kmh / 3.6
@@ -539,20 +550,26 @@ class CruiseControl(object):
             # The speed that closes the gap error over a few seconds.
             target = min(target, 3.6 * max(0.0, v_lead + ACC_GAP_GAIN * (gap - wanted)))
             # Closing in: the deceleration that matches its speed by the set gap,
-            # braked only when lifting off would not do.
+            # braked only when lifting off would not do. Near the set gap the
+            # room left is not taken as nothing, which would stamp on the brake.
             closing = v - v_lead
             if closing > 0.0:
-                needed = closing ** 2 / (2.0 * max(1.0, gap - wanted))
+                needed = closing ** 2 / (2.0 * max(0.3 * wanted, gap - wanted, 1.0))
                 if needed > ACC_CLOSING_BRAKE_MS2:
                     brake = needed / ACC_FULL_BRAKE_MS2
+                urgent = closing ** 2 / (2.0 * max(0.5, gap - ACC_STANDSTILL_M)) > ACC_URGENT_MS2
             # Behind a stopped car: stop ACC_STANDSTILL_M short of it.
             if v_lead < 1.0 and v > 0.0:
                 needed = v ** 2 / (2.0 * max(0.5, gap - ACC_STANDSTILL_M))
-                brake = max(brake, 1.5 * needed / ACC_FULL_BRAKE_MS2)
+                if needed > ACC_CLOSING_BRAKE_MS2:
+                    brake = max(brake, 1.2 * needed / ACC_FULL_BRAKE_MS2)
         # Above the target (a slower car, a lower set speed, downhill); a
         # light brake is left to the engine.
         over = ACC_BRAKE_PER_KMH * max(0.0, kmh - target - 3.0)
         brake = max(brake, over if over >= 0.05 else 0.0)
+        if not urgent:
+            brake = min(brake, ACC_COMFORT_BRAKE, self._brake + ACC_BRAKE_RISE * dt)
+        self._brake = brake
         if kmh < 1.0 and target < 3.0:
             brake = max(brake, 0.4)  # hold the car at a standstill
         if kmh < 1.0:
@@ -577,26 +594,65 @@ class LeadFinder(object):
     """The car ahead in the ego car's lane, for adaptive cruise control.
 
     Follows the ego's lane forward along the map's waypoints (at a junction,
-    the straightest way on) and takes the nearest vehicle on that path.
+    the straightest way on) and takes the nearest vehicle on that path. Its
+    speed is measured from where it goes: SUMO's cars are placed in CARLA tick
+    by tick, without physics, and their get_velocity() is always 0.
     """
 
     STEP = 2.5
+    # Each car's velocity: over at least this many simulated seconds, and how
+    # much of each new measurement goes into it.
+    VELOCITY_SECONDS = 0.1
+    VELOCITY_SHARE = 0.4
+    SPEED_JUMP_KMH = 25.0
 
     def __init__(self, world):
         self._world = world
         self._map = world.get_map()
         self._next = 0.0
         self._lead = None
+        self._held = 0
+        self._tracks = {}   # actor id -> [time, x, y, vx, vy]; vx is None at first
 
     def update(self, ego):
         """(gap in m, speed along the lane in km/h) of the car ahead, or None; 20 Hz."""
         now = time.time()
         if now >= self._next:
             self._next = now + 0.05
-            self._lead = self._find(ego)
+            lead = self._find(ego)
+            # A car can't change speed this much in 50 ms: a bad reading (the
+            # path's direction at a fork), held out for a few updates.
+            if (lead and self._lead and abs(lead[0] - self._lead[0]) < 3.0 and
+                    abs(lead[1] - self._lead[1]) > self.SPEED_JUMP_KMH and self._held < 3):
+                self._held += 1
+                lead = (lead[0], self._lead[1])
+            else:
+                self._held = 0
+            self._lead = lead
         return self._lead
 
+    def _velocity(self, actor_id, at, now, tracks):
+        """(vx, vy) of a car from its last positions, or None while unknown."""
+        track = self._tracks.get(actor_id)
+        if track is None:
+            track = [now, at.x, at.y, None, None]
+        elif now - track[0] >= self.VELOCITY_SECONDS:
+            dt = now - track[0]
+            vx, vy = (at.x - track[1]) / dt, (at.y - track[2]) / dt
+            if math.hypot(vx, vy) > 90.0:      # put somewhere else, not driving
+                track = [now, at.x, at.y, None, None]
+            else:
+                if track[3] is not None:
+                    share = self.VELOCITY_SHARE
+                    vx, vy = track[3] + share * (vx - track[3]), track[4] + share * (vy - track[4])
+                track = [now, at.x, at.y, vx, vy]
+        tracks[actor_id] = track
+        return None if track[3] is None else (track[3], track[4])
+
     def _find(self, ego):
+        # All from one snapshot, so that positions and their time belong together.
+        snapshot = self._world.get_snapshot()
+        now = snapshot.timestamp.elapsed_seconds
         here = ego.get_location()
         wp = self._map.get_waypoint(here)
         if wp is None:
@@ -615,12 +671,17 @@ class LeadFinder(object):
                            i * self.STEP, math.hypot(self.STEP / 2.0, 0.4 * w.lane_width)))
         best = None
         reach = (ACC_RANGE_M + 10.0) ** 2
+        tracks = {}
         for other in self._world.get_actors().filter('vehicle.*'):
             if other.id == ego.id:
                 continue
-            at = other.get_location()
+            state = snapshot.find(other.id)
+            if state is None:
+                continue
+            at = state.get_transform().location
             if (at.x - here.x) ** 2 + (at.y - here.y) ** 2 > reach:
                 continue
+            velocity = self._velocity(other.id, at, now, tracks)
             x, y, fx, fy, along, radius = min(points, key=lambda p: (at.x - p[0]) ** 2 + (at.y - p[1]) ** 2)
             if math.hypot(at.x - x, at.y - y) > radius:
                 continue
@@ -628,8 +689,11 @@ class LeadFinder(object):
             gap = along - ego.bounding_box.extent.x - other.bounding_box.extent.x
             if along <= 0.0 or (best is not None and gap >= best[0]):
                 continue
-            v = other.get_velocity()
-            best = (max(0.0, gap), 3.6 * (v.x * fx + v.y * fy))
+            if velocity is None:
+                v = other.get_velocity()
+                velocity = v.x, v.y
+            best = (max(0.0, gap), 3.6 * (velocity[0] * fx + velocity[1] * fy))
+        self._tracks = tracks
         return best
 
 
@@ -1184,7 +1248,7 @@ class KeyboardControl(object):
         self._cruise = CruiseControl()
         self._cruise_override = False
         self._leads = None
-        self._ap_speed = AUTOPILOT_KMH
+        self._ap_speed = AUTOPILOT_START_KMH
         # The drive mode to go back to when the driver takes over.
         self._mode_before_autopilot = None
         # Since when the wheel has been held against the autopilot, and how far.
@@ -1483,7 +1547,7 @@ class KeyboardControl(object):
         self._cruise = CruiseControl()
         self._cruise_override = False
         self._leads = None
-        self._ap_speed = AUTOPILOT_KMH
+        self._ap_speed = AUTOPILOT_START_KMH
         self._mode_before_autopilot = None
         self._set_drive_mode(DEFAULT_DRIVE_MODE)
         self._control = carla.VehicleControl()
@@ -1597,6 +1661,7 @@ class KeyboardControl(object):
         self._cruise_override = False
         tm_port = world.traffic_manager.get_port()
         if enabled:
+            self._ap_speed = min(AUTOPILOT_MAX_KMH, max(AUTOPILOT_START_KMH, int(round(_speed_kmh(world.player)))))
             world.player.set_autopilot(True, tm_port)
             self._configure_autopilot(world)
             self._mode_before_autopilot = self._drive_mode
@@ -1656,8 +1721,11 @@ class KeyboardControl(object):
                 self._set_autopilot(world, False)
                 return
             if button in (CRUISE_UP, CRUISE_DOWN):
-                step = CRUISE_STEP_KMH if button == CRUISE_UP else -CRUISE_STEP_KMH
-                self._ap_speed = max(AUTOPILOT_MIN_KMH, min(AUTOPILOT_MAX_KMH, self._ap_speed + step))
+                # To the next multiple of the step, as for cruise control.
+                step = CRUISE_STEP_KMH
+                target = ((self._ap_speed // step + 1) * step if button == CRUISE_UP
+                          else -(-self._ap_speed // step) * step - step)
+                self._ap_speed = max(AUTOPILOT_MIN_KMH, min(AUTOPILOT_MAX_KMH, target))
                 self._configure_autopilot(world)
                 world.hud.notification('Autopilot %d km/h' % self._ap_speed)
             elif button in (GAP_DOWN, GAP_UP):

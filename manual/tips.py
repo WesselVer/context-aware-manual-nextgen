@@ -199,7 +199,7 @@ TIPS = [
     dict(id='acc-gap',
          title='Choose how close adaptive cruise follows',
          body='The d-pad sets the time gap to the car ahead: up for a longer gap (2.5 s at the most), '
-              'down for a shorter one (1 s at the least).',
+              'down for a shorter one (0.6 s at the least).',
          highlight=['acc'],
          control=dict(button=['dpad-up', 'dpad-down'], press='tap', label='GAP', hint='UP: MORE ROOM',
                       where='down: closer'),
@@ -230,7 +230,7 @@ TIPS = [
     dict(id='ap-speed',
          title='Set how fast the autopilot drives',
          body='With the autopilot on, the top and bottom buttons change its speed in 5 km/h '
-              'steps. It starts at 60 km/h.',
+              'steps. It starts at the speed you are driving.',
          highlight=['autopilot'],
          control=dict(button=['speed-up', 'speed-down'], press='tap', label='SPEED + / −'),
          action='Press the top or bottom button once.',

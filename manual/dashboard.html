@@ -268,7 +268,7 @@ function render(p) {
   var ap = assist === 'Autopilot' ? Object.assign({}, active, { chipText: 'DRIVING' }) : off;
   var apLead = assist === 'Autopilot' ? p.accLead : null;
 
-  var gapSeconds = ['1.0 s', '1.5 s', '2.0 s', '2.5 s'][gap - 1];
+  var gapSeconds = ['0.6 s', '1.0 s', '1.5 s', '2.5 s'][gap - 1];
   var markerSpeed = assist === 'Autopilot' ? p.apTarget : setSpeed;
   var showMarker = assist !== 'None' && markerSpeed !== '–';
   var regenNames = ['Off', 'Low', 'Medium', 'Maximum'];
