@@ -13,6 +13,7 @@ takes its rim from the top, mirrored, so a turned rim has no gap.
 """
 
 import collections
+import math
 
 import numpy as np
 import pygame
@@ -40,7 +41,7 @@ def depth_metres(image):
     return 1000.0 * (d[:, :, 2] + d[:, :, 1] * 256.0 + d[:, :, 0] * 65536.0) / (256.0 ** 3 - 1)
 
 
-def find_wheel(metres):
+def find_wheel(metres, fov=90.0):
     """The steering wheel in a driver's-eye depth image: its pixels and the
     ellipse of its rim (centre cx, cy; half-axes a across, b down); None
     when there is no wheel low in the middle of the view."""
@@ -74,9 +75,8 @@ def find_wheel(metres):
     top = rows[0]
     rim_depth = np.median(m[top:top + 8][mask[top:top + 8]])
     mask &= m <= rim_depth + BEHIND_RIM
-    # The rim's outer edge on its upper part (above the stalks), in 3D: the
-    # camera has a 90-degree field of view, so f is half the image width.
-    f = w / 2.0
+    # The rim's outer edge on its upper part (above the stalks), in 3D.
+    f = w / 2.0 / math.tan(math.radians(fov) / 2.0)
     us, vs = [], []
     for y in range(top, top + int(RIM_FIT_SHARE * (h - top))):
         xs = np.nonzero(mask[y])[0]
@@ -232,11 +232,12 @@ class CabinWheel(object):
     the G25, which turns the same way; up to half the wheel's range.
     """
 
-    def __init__(self, vehicle, eye, size, steer_ratio, wheel_range=900.0):
+    def __init__(self, vehicle, eye, size, steer_ratio, wheel_range=900.0, fov=90.0):
         import carla
         self._vehicle = vehicle
         self._steer_ratio = steer_ratio
         self._half_range = wheel_range / 2.0
+        self._fov = fov
         try:
             angles = [w.max_steer_angle for w in vehicle.get_physics_control().wheels]
             self._max_steer = max(angles) or 70.0
@@ -250,6 +251,7 @@ class CabinWheel(object):
         bp = world.get_blueprint_library().find('sensor.camera.depth')
         bp.set_attribute('image_size_x', str(size[0]))
         bp.set_attribute('image_size_y', str(size[1]))
+        bp.set_attribute('fov', str(fov))
         self._sensor = world.spawn_actor(bp, carla.Transform(eye), attach_to=vehicle,
                                          attachment_type=carla.AttachmentType.Rigid)
         self._sensor.listen(self._on_depth)
@@ -272,7 +274,7 @@ class CabinWheel(object):
                 return
             # Once: find the wheel, then the depth camera is done.
             self._stop_sensor()
-            geometry = find_wheel(depth_metres(self._depth))
+            geometry = find_wheel(depth_metres(self._depth), self._fov)
             if geometry is None or geometry.mask.shape != rgb.shape[:2]:
                 print('Steering wheel not found in the driver\'s view; it will not turn.')
                 self._failed = True

@@ -26,6 +26,10 @@ working beside it. --wheel picks another wheel by name, --no-wheel ignores it.
 CARLA has no clutch, so pressing it disengages the throttle. The H-shifter is
 an automatic's selector: 1st P, 3rd D, 4th R, anywhere else N.
 
+The car sounds like a quiet electric car, with road and wind noise, played
+here (car_sound.py) so a late server can't make it stutter: start the server
+with -nosound. --sound-volume sets how loud, 0 for none.
+
 Drive modes Eco, Normal (the default) and Dynamic shape the throttle; the left
 paddle steps down, the right one up. Eco also makes the wheel's force
 feedback 40% lighter. Each mode sets the regenerative braking
@@ -43,7 +47,7 @@ then resumes the last set speed. The throttle overrides it while pressed.
 Adaptive cruise control (ACC) is the second red button, from 20 km/h like
 plain cruise. It speeds up to 30 km/h, or keeps the current speed when that
 is faster, follows the car ahead in your lane at the time gap set on the d-pad
-(up shorter, down longer)
+(up longer, down shorter)
 (1.0, 1.5, 2.0 or 2.5 s; 1.5 s to start), and brakes, down to a stop. After
 more than 3 s stopped it waits for its button or the throttle. The same
 speed buttons, standby and resume apply. Pressing one assist's button while
@@ -208,6 +212,7 @@ except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
 from hardware.cabin_wheel import CabinWheel
+from hardware.car_sound import CarSound
 from manual import Dashboard, focus_window
 from manual.drive_log import DATA_DIR, DriveLog
 from manual.tips import Tips
@@ -292,15 +297,18 @@ def get_actor_blueprints(world, filter, generation):
 # Cars Backspace cycles through, in order, each with a driver's-eye camera
 # position (metres, vehicle frame: x forward, y right, z up) tuned by eye so
 # the windshield, steering wheel and dashboard are all in view. CARLA 1.0 has
-# the Unreal Engine 5 cars of 0.10.0, where these were tuned (on 0.9.16's
-# cars they sat 15 cm further forward).
+# the Unreal Engine 5 cars of 0.10.0, where these were tuned, here with the
+# seat 6 cm higher (on 0.9.16's cars they sat 15 cm further forward).
 DRIVER_EYES = [
-    ('vehicle.lincoln.mkz', carla.Location(x=-0.25, y=-0.41, z=1.18)),
-    ('vehicle.dodge.charger', carla.Location(x=-0.40, y=-0.42, z=1.24)),
-    ('vehicle.nissan.patrol', carla.Location(x=-0.35, y=-0.48, z=1.68)),
-    ('vehicle.taxi.ford', carla.Location(x=0.00, y=-0.40, z=1.08)),
-    ('vehicle.mini.cooper', carla.Location(x=-0.35, y=-0.45, z=1.30)),
+    ('vehicle.lincoln.mkz', carla.Location(x=-0.25, y=-0.41, z=1.24)),
+    ('vehicle.dodge.charger', carla.Location(x=-0.40, y=-0.42, z=1.30)),
+    ('vehicle.nissan.patrol', carla.Location(x=-0.35, y=-0.48, z=1.74)),
+    ('vehicle.taxi.ford', carla.Location(x=0.00, y=-0.40, z=1.14)),
+    ('vehicle.mini.cooper', carla.Location(x=-0.35, y=-0.45, z=1.36)),
 ]
+
+# The driver's view's horizontal field of view, in degrees.
+DRIVER_FOV = 84
 
 # Where every drive starts, per map: on Town04, the highway's rightmost
 # lane on the loop's west side (its spawn point 31), with 150 m of straight
@@ -904,7 +912,8 @@ class World(object):
         self.mirrors = Mirrors(self.player, self.hud.dim, self._gamma)
         # Off by default: about 5 ms a frame (cabin_wheel.py).
         if self._turn_wheel:
-            self.cabin_wheel = CabinWheel(self.player, driver_eye(self.player), self.hud.dim, self._steer_ratio)
+            self.cabin_wheel = CabinWheel(self.player, driver_eye(self.player), self.hud.dim, self._steer_ratio,
+                                          fov=DRIVER_FOV)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
         self.traffic_manager.update_vehicle_lights(self.player, True)
@@ -1023,21 +1032,35 @@ class Mirrors(object):
     # is at the top of the view.
     INTERIOR_WIDTH = 0.26
     INTERIOR_CENTRE = {
-        'vehicle.lincoln.mkz': (0.80, 0.323),
-        'vehicle.dodge.charger': (0.76, 0.393),
-        'vehicle.nissan.patrol': (0.735, 0.413),
-        'vehicle.taxi.ford': (0.90, 0.13),
-        'vehicle.mini.cooper': (0.86, 0.305),
+        'vehicle.lincoln.mkz': (0.833, 0.384),
+        'vehicle.dodge.charger': (0.79, 0.448),
+        'vehicle.nissan.patrol': (0.7625, 0.453),
+        'vehicle.taxi.ford': (0.90, 0.1925),
+        'vehicle.mini.cooper': (0.89, 0.373),
     }
 
     # The door mirror's glass in the driver's view, as a polygon (pixels at
     # 1920x1200, read off a screenshot on CARLA 1.0): the mirror's image
-    # fills the car's own glass, its frame round it. Other cars get a plain
-    # rectangle.
+    # fills the car's own glass, its frame round it. Any other car gets a
+    # plain rectangle. These and INTERIOR_CENTRE follow DRIVER_EYES and
+    # DRIVER_FOV: read them off again when those change.
     DOOR_GLASS = {
-        'vehicle.lincoln.mkz': [(232, 720), (250, 687), (277, 657), (300, 650), (367, 645), (450, 643),
-                                (480, 647), (500, 663), (508, 703), (507, 737), (493, 755), (367, 758),
-                                (247, 755), (235, 743)],
+        'vehicle.lincoln.mkz': [(151, 805), (163, 780), (180, 758), (200, 745), (220, 737), (240, 729), (280, 723),
+                                (320, 721), (360, 718), (400, 716), (420, 718), (437, 727), (450, 743), (458, 767),
+                                (460, 790), (455, 813), (445, 833), (433, 842), (400, 844), (320, 846), (220, 847),
+                                (170, 843), (162, 832), (153, 813)],
+        'vehicle.dodge.charger': [(312, 805), (316, 788), (322, 777), (335, 767), (350, 761), (380, 758), (440, 757),
+                                  (480, 757), (497, 759), (508, 768), (515, 785), (519, 805), (519, 825), (513, 840),
+                                  (500, 850), (470, 857), (420, 864), (370, 866), (340, 864), (318, 853), (313, 840)],
+        'vehicle.nissan.patrol': [(287, 800), (289, 775), (295, 760), (310, 754), (340, 752), (400, 750), (440, 751),
+                                  (452, 756), (460, 770), (468, 800), (474, 835), (476, 870), (472, 885), (452, 898),
+                                  (412, 915), (365, 923), (330, 923), (310, 920), (298, 912), (291, 895), (287, 860)],
+        'vehicle.taxi.ford': [(239, 755), (240, 735), (245, 718), (258, 703), (280, 689), (310, 681), (360, 675),
+                              (410, 675), (432, 680), (445, 690), (452, 710), (453, 740), (450, 765), (443, 785),
+                              (432, 799), (420, 806), (390, 808), (330, 803), (280, 798), (255, 790), (243, 775)],
+        'vehicle.mini.cooper': [(0, 733), (33, 725), (83, 721), (133, 722), (173, 730), (207, 743), (233, 763),
+                                (253, 790), (265, 823), (267, 850), (260, 880), (247, 907), (227, 930), (200, 950),
+                                (167, 963), (117, 975), (67, 972), (33, 965), (0, 953)],
     }
 
     def __init__(self, vehicle, screen, gamma):
@@ -1152,6 +1175,9 @@ class KeyboardControl(object):
         # --ffb-gain, which each drive mode scales.
         self._ffb_gain = wheel.ffb_gain if wheel is not None else 1.0
         self._drive_mode = DEFAULT_DRIVE_MODE
+        # Paddle pulls past the last mode, and which end: the dashboard shakes its head.
+        self._mode_blocked = 0
+        self._mode_blocked_end = None
         self._regen = DRIVE_MODES[self._drive_mode].regen
         self._key_throttle = 0.0
         self._clutch = 0.0
@@ -1166,6 +1192,8 @@ class KeyboardControl(object):
         self._ap_pull_deg = 0.0
         # The control the Traffic Manager last applied, for the dashboard.
         self._ap_control = None
+        # (gap in m, speed in km/h) of the car ahead on autopilot, or None.
+        self._ap_lead = None
         # The speed the Traffic Manager was last given, with any override.
         self._ap_tm_speed = None
         self._applied_throttle = 0.0
@@ -1522,11 +1550,7 @@ class KeyboardControl(object):
         """Wheel and pedals on top of the keys: steering keys win, pedals add."""
         for button in self._wheel.pressed():
             if button in (PADDLE_LEFT, PADDLE_RIGHT):
-                step = 1 if button == PADDLE_RIGHT else -1
-                mode = max(0, min(len(DRIVE_MODES) - 1, self._drive_mode + step))
-                if mode != self._drive_mode:
-                    self._set_drive_mode(mode)
-                    world.hud.notification('%s mode' % DRIVE_MODES[mode].name)
+                self._step_drive_mode(world, 1 if button == PADDLE_RIGHT else -1)
             elif button in (WHEEL_BUTTON_LEFT, WHEEL_BUTTON_RIGHT):
                 step = 1 if button == WHEEL_BUTTON_RIGHT else -1
                 self._regen = max(0, min(len(REGEN_BRAKE) - 1, self._regen + step))
@@ -1584,6 +1608,7 @@ class KeyboardControl(object):
                 self._set_drive_mode(self._mode_before_autopilot)
                 self._mode_before_autopilot = None
             self._ap_control = None
+            self._ap_lead = None
             world.hud.notification('Autopilot off' + (': ' + reason if reason else ''))
 
     def _configure_autopilot(self, world):
@@ -1605,9 +1630,22 @@ class KeyboardControl(object):
         if self._wheel is not None:
             self._wheel.ffb_gain = self._ffb_gain * DRIVE_MODES[mode].ffb
 
+    def _step_drive_mode(self, world, step):
+        """A paddle: the next mode, or, past the last one, the dashboard says why not."""
+        mode = self._drive_mode + step
+        if 0 <= mode < len(DRIVE_MODES):
+            self._set_drive_mode(mode)
+            world.hud.notification('%s mode' % DRIVE_MODES[mode].name)
+        else:
+            self._mode_blocked += 1
+            self._mode_blocked_end = 'lowest' if step < 0 else 'highest'
+            world.hud.notification('%s is the %s mode' % (DRIVE_MODES[self._drive_mode].name,
+                                                          self._mode_blocked_end))
+
     def _parse_autopilot(self, world, keys, dt):
         """While the car drives itself: its buttons, and the driver taking over."""
         self._ap_control = world.player.get_control()
+        self._ap_lead = self._lead_finder(world).update(world.player)
         brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         if self._wheel is None:
             if brake:
@@ -1627,11 +1665,7 @@ class KeyboardControl(object):
                 self._configure_autopilot(world)
                 world.hud.notification('%s, %d m' % (message, self._ap_distance))
             elif button in (PADDLE_LEFT, PADDLE_RIGHT):
-                step = 1 if button == PADDLE_RIGHT else -1
-                mode = max(0, min(len(DRIVE_MODES) - 1, self._drive_mode + step))
-                if mode != self._drive_mode:
-                    self._set_drive_mode(mode)
-                    world.hud.notification('%s mode' % DRIVE_MODES[mode].name)
+                self._step_drive_mode(world, 1 if button == PADDLE_RIGHT else -1)
         _, throttle, pedal_brake, _ = self._wheel.read(world.player)
         self.pedal = throttle
         if max(brake, pedal_brake) > AUTOPILOT_BRAKE:
@@ -1739,9 +1773,12 @@ class KeyboardControl(object):
         """The drivetrain values the dashboard shows."""
         # On autopilot the Traffic Manager's control is the one applied.
         control = self._ap_control if self._autopilot_enabled and self._ap_control else self._control
+        lead = self._ap_lead if self._autopilot_enabled else (self._cruise.lead if self._cruise.adaptive else None)
         return dict(layout=self.layout,
                     gear=self.selected_gear,
                     driveMode=DRIVE_MODES[self._drive_mode].name,
+                    modeBlocked=self._mode_blocked,
+                    modeBlockedEnd=self._mode_blocked_end,
                     regenLevel=self._regen,
                     driverPedal=int(round(100 * self.pedal)),
                     appliedThrottle=int(round(100 * control.throttle)),
@@ -1751,8 +1788,7 @@ class KeyboardControl(object):
                     apDistance=int(round(self._ap_distance)),
                     setSpeed=self._cruise.set_speed,
                     accGap=self._cruise.gap,
-                    accLead=(int(round(self._cruise.lead[0]))
-                             if self._cruise.adaptive and self._cruise.lead else None),
+                    accLead=int(round(lead[0])) if lead else None,
                     accWaiting=self._cruise.waiting,
                     throttleOverride=self._cruise_override)
 
@@ -2284,6 +2320,7 @@ class CameraManager(object):
             if item[0].startswith('sensor.camera'):
                 bp.set_attribute('image_size_x', str(hud.dim[0]))
                 bp.set_attribute('image_size_y', str(hud.dim[1]))
+                bp.set_attribute('fov', str(DRIVER_FOV))
                 if bp.has_attribute('gamma'):
                     bp.set_attribute('gamma', str(gamma_correction))
                 if bp.has_attribute('post_process_profile'):
@@ -2403,6 +2440,7 @@ class CameraManager(object):
 
 
 def game_loop(args):
+    CarSound.prepare()
     pygame.init()
     pygame.font.init()
     world = None
@@ -2411,6 +2449,7 @@ def game_loop(args):
     traffic = None
     tips = Tips()
     wheel = None
+    sound = None
     participant = args.participant or time.strftime('session-%Y%m%d-%H%M%S')
     drive_log = DriveLog(os.path.join(args.data or DATA_DIR, participant),
                          free_seconds=args.free_drive_seconds)
@@ -2509,6 +2548,9 @@ def game_loop(args):
                 traffic = None
                 print('No SUMO traffic: %s' % error)
 
+        if args.sound_volume > 0 and pygame.mixer.get_init():
+            sound = CarSound(args.sound_volume)
+
         clock = pygame.time.Clock()
         refocus = dashboard is not None
         last_collision = None
@@ -2531,6 +2573,8 @@ def game_loop(args):
             pygame.display.flip()
             v = world.player.get_velocity()
             speed = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
+            if sound is not None:
+                sound.update(speed / 3.6, world.player.get_control())
             if wheel is not None:
                 history = world.collision_sensor.history
                 collision = history[-1] if history else None
@@ -2565,6 +2609,9 @@ def game_loop(args):
     finally:
 
         faulthandler.cancel_dump_traceback_later()
+        if sound is not None:
+            sound.close()
+
         # First, so the world is back in asynchronous mode before the car goes.
         if traffic is not None:
             traffic.close()
@@ -2641,6 +2688,9 @@ def main():
     argparser.add_argument(
         '--tm-port', metavar='P', default=8000, type=int,
         help='port of the Traffic Manager (default: 8000)')
+    argparser.add_argument(
+        '--sound-volume', metavar='V', default=1.0, type=float,
+        help='volume of the car\'s sound, 0 for none (default: 1.0)')
     argparser.add_argument(
         '--no-dashboard', action='store_false', dest='dashboard',
         help='do not open the dashboard window')

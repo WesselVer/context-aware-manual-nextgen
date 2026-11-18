@@ -55,7 +55,7 @@ label), drawn on the shifter or the wheel, or the movement to make
 (gesture), drawn too:
   zones     speed, throttle, brake, gear, cruise, acc, autopilot, driveMode, regen
   shifter   speed-up, speed-down (the silver panel's top and bottom), cc, acc, autopilot
-            (the red row), dpad-up (gap -), dpad-down (gap +)
+            (the red row), dpad-up (gap +), dpad-down (gap -)
   wheel     paddle-left, paddle-right, regen-down, regen-up
   gestures  release-throttle, press-brake, press-throttle
 """
@@ -198,11 +198,11 @@ TIPS = [
          done_body='It aims for the new speed whenever the road ahead is clear.'),
     dict(id='acc-gap',
          title='Choose how close adaptive cruise follows',
-         body='The d-pad sets the time gap to the car ahead: up for a shorter gap (1 s at the least), '
-              'down for a longer one (2.5 s at the most).',
+         body='The d-pad sets the time gap to the car ahead: up for a longer gap (2.5 s at the most), '
+              'down for a shorter one (1 s at the least).',
          highlight=['acc'],
-         control=dict(button=['dpad-up', 'dpad-down'], press='tap', label='GAP', hint='UP: CLOSER',
-                      where='down: more room'),
+         control=dict(button=['dpad-up', 'dpad-down'], press='tap', label='GAP', hint='UP: MORE ROOM',
+                      where='down: closer'),
          action='Press the d-pad up or down.',
          learn='gap-change',
          after=lambda tips: tips.assist == 'ACC',

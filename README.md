@@ -57,6 +57,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 | | |
 |---|---|
 | **Driver's seat** | CARLA's `manual_control.py`, rebuilt for a study: a driver's-eye camera tuned per car (Lincoln MKZ by default), interior and door mirrors, a steering wheel that turns in the cabin, full screen on screen 1. |
+| **Sound that doesn't stutter** | A quiet electric motor with road and wind noise, made and played by the drive itself, so a late server can't interrupt it. |
 | **Unreal Engine 5 look** | Lumen lighting and ray-traced shadows at Epic quality, through CARLA 1.0's `Cinematic` camera profile, with NVIDIA DLSS keeping the frame time down. |
 | **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that you can override with the pedals and wheel. |
 | **Logitech G25** | Steering, pedals and the H-shifter as an automatic's P/R/N/D, with force feedback; the shifter's red buttons are cruise, adaptive cruise and autopilot. The keyboard works beside it. |
@@ -130,7 +131,7 @@ Start the server. It runs without a window of its own (the participant only sees
 ready when port 2000 answers, about 20 s:
 
 ```bash
-C:\CARLA\CARLA_1.0\CarlaUnreal.exe -RenderOffScreen
+C:\CARLA\CARLA_1.0\CarlaUnreal.exe -RenderOffScreen -nosound
 ```
 
 The first time, Windows Firewall asks whether CarlaUnreal may use the network: the drive talks to it on this PC
@@ -152,6 +153,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 | `--free-drive-seconds 120` | the longest the scored free drive runs |
 | `--record` | also record the drive with CARLA's recorder |
 | `--dlss 0` | the driver's view without DLSS (default: rendered at 67% and upscaled) |
+| `--sound-volume 0.5` | how loud the car is, 0 for silent (default: 1.0) |
 | `--no-wheel`, `--no-dashboard` | ignore the G25, or run without the dashboard |
 | `--dashboard-layout full` | the older, fuller dashboard (J swaps them while driving) |
 
@@ -217,7 +219,7 @@ Highway ramps count as junctions. The rules and the tips' wording are in [`manua
 | Shifter, 1st / 3rd / 4th | P / D / R; anywhere else N |
 | Red buttons, left to right | cruise control, adaptive cruise, autopilot |
 | Silver panel, top / bottom | set speed +5 / -5 km/h |
-| D-pad up / down | following gap shorter / longer |
+| D-pad up / down | following gap longer / shorter |
 | Paddles | drive mode down / up (Eco, Normal, Dynamic) |
 | Wheel's top buttons | regen down / up |
 | Clutch | cuts the power (CARLA has no clutch) |
@@ -284,7 +286,7 @@ carry over. What changed, each measured on the Lincoln (2026-11-17) and set to d
 
 | | 0.9.16 | 1.0 | So |
 |---|---|---|---|
-| Cars | `vehicle.lincoln.mkz_2020`, ... | `vehicle.lincoln.mkz`, ... (0.10.0's) | names and driver's eyes as tuned on 0.10.0; mirrors placed anew |
+| Cars | `vehicle.lincoln.mkz_2020`, ... | `vehicle.lincoln.mkz`, ... (0.10.0's) | names and driver's eyes from 0.10.0, seat 6 cm higher, 84° view; mirrors placed anew |
 | Camera look | gamma 2.2, +1 stop exposure | no gamma or exposure setting; camera profiles | the `Cinematic` profile (the default looks grey and grainy) |
 | Coasting, throttle released | 3.5 m/s² | 0.5 m/s² | regen back to 0.10.0's levels: 1.3, 2.1, 3.8 m/s² |
 | Jolt at the end of a stop | near 2 g, so tyre stiffness was capped | none: braking stays smooth to a standstill | no cap (Chaos has no such setting) |

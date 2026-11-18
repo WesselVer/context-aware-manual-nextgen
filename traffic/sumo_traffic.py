@@ -60,9 +60,13 @@ HIGHWAY_KMH = 80.0
 # go again beyond it plus LOD_MARGIN.
 RADIUS = 200.0
 LOD_MARGIN = 30.0
-# How often (ticks) every SUMO car is checked for near and far: half a second,
-# in which a car at 90 km/h goes 12.5 m, within the margin.
+# How often (ticks) every SUMO car is checked for near and far: 0.6 s, in which
+# a car at 90 km/h goes 16 m, within the margin.
 LOD_TICKS = 25
+# A car in CARLA always has at least this much route (m) past the road it is on:
+# routes end anywhere, and SUMO takes a car off where its route ends, which in
+# CARLA looked like a car vanishing from the road.
+ROUTE_AHEAD = 150.0
 # SUMO runs this long before the drive starts, so the roads are already full.
 WARM_UP_SECONDS = 240.0
 # Before the drive's car is put down (at the start, or for the next participant),
@@ -98,6 +102,49 @@ def _sumo_home():
 def _heading(shape, at_end):
     (x0, y0), (x1, y1) = (shape[-2], shape[-1]) if at_end else (shape[0], shape[1])
     return math.atan2(y1 - y0, x1 - x0)
+
+
+def _bend(edge, to):
+    out = _heading(edge.getShape(), True)
+    return abs((_heading(to.getShape(), False) - out + math.pi) % (2 * math.pi) - math.pi)
+
+
+def _passenger_lanes(edge):
+    return [l for l in edge.getLanes() if l.allows('passenger')]
+
+
+def next_edge(edge, recent):
+    """The road a car goes on to after edge when its route has run out: one
+    with the right of way if there is one, then the most lanes, the least bend."""
+    ways = []
+    for to, connections in edge.getOutgoing().items():
+        usable = [c for c in connections if c.getFromLane().allows('passenger') and c.getToLane().allows('passenger')]
+        if usable and to not in recent:
+            ways.append((not any(c.getState() == 'M' for c in usable), -len(_passenger_lanes(to)), _bend(edge, to), to))
+    return min(ways, key=lambda way: way[:3])[3] if ways else None
+
+
+def highway_junction_speeds(net):
+    """{lane inside a junction: m/s} for the highway running straight on through
+    its junctions. The network has those lanes at netconvert's 50 km/h, so the
+    traffic braked from 90 to 50 at every one of Town04's many highway junctions
+    and averaged about 65; they get the limit of the road they join."""
+    import sumolib
+    sn = sumolib.net.readNet(net, withInternal=True)
+    main = set()
+    for edge in sn.getEdges():
+        lanes = _passenger_lanes(edge)
+        if not edge.getID().startswith(':') and len(lanes) >= 2 and \
+                max(l.getSpeed() for l in lanes) * 3.6 >= HIGHWAY_KMH:
+            main.add(edge)
+    speeds = {}
+    for edge in main:
+        for to, connections in edge.getOutgoing().items():
+            if to in main:
+                for c in connections:
+                    if c.getState() == 'M' and c.getViaLaneID():
+                        speeds[c.getViaLaneID()] = min(c.getFromLane().getSpeed(), c.getToLane().getSpeed())
+    return speeds
 
 
 def highway_routes(net, rng, count):
@@ -206,6 +253,8 @@ class SumoTraffic(object):
         BridgeHelper.blueprint_library = self._world.get_blueprint_library()
         BridgeHelper.offset = self.sumo.get_net_offset()
         import traci
+        for lane, speed in highway_junction_speeds(net).items():
+            traci.lane.setMaxSpeed(lane, speed)
         # Ahead of the drive, so there is traffic from the start: a second at a
         # time inside SUMO, and between them pump() (the drive's window answers
         # Windows, which otherwise calls it not responding and may close it).
@@ -302,10 +351,16 @@ class SumoTraffic(object):
         lap(None)
         sumo.tick()
         lap('sumo')
+        hero = self._hero()
+        try:
+            here = hero.get_location() if hero is not None else None
+        except RuntimeError:
+            here = None
         for actor_id in sumo.spawned_actors:
             if self._twin is None or actor_id != self._twin[1]:
-                self._watch_from_afar(actor_id)
-                self._live.add(actor_id)
+                if not self._take_off_if_in_view(actor_id, here):
+                    self._watch_from_afar(actor_id)
+                    self._live.add(actor_id)
         for actor_id in sumo.destroyed_actors:
             self._live.discard(actor_id)
             self._subscribed.discard(actor_id)
@@ -316,12 +371,6 @@ class SumoTraffic(object):
             self._twin = None  # SUMO took it off (teleported); it gets a new one below
 
         lap('arrivals')
-        hero = self._hero()
-        try:
-            here = hero.get_location() if hero is not None else None
-        except RuntimeError:
-            here = None
-
         # Level of detail: every LOD_TICKS ticks, and for cars just in, spawn what
         # is near the drive's car (in one batch) and remove what has gone far.
         self._tick_no += 1
@@ -341,6 +390,8 @@ class SumoTraffic(object):
                 if d > RADIUS + LOD_MARGIN:
                     gone.append(carla.command.DestroyActor(self._in_carla.pop(actor_id)))
                     self._watch_from_afar(actor_id)
+                else:
+                    self._extend_route(actor_id)
                 continue
             # From afar SUMO sends only the position (of the front bumper, which
             # is near enough here).
@@ -418,11 +469,53 @@ class SumoTraffic(object):
             pose = bridge.get_sumo_transform(hero.get_transform(), hero.bounding_box.extent)
             self._traci.vehicle.moveToXY(self._twin[1], '', 0, pose.location.x, pose.location.y,
                                          angle=pose.rotation.yaw, keepRoute=2)
+            if not self.twin_ok:
+                # Or SUMO holds it to its own share of the limit, whatever the car does.
+                self._traci.vehicle.setSpeedFactor(self._twin[1], 3.0)
             self.twin_ok = True
         except (RuntimeError, self._traci.exceptions.TraCIException) as error:
             # Until SUMO has put it on the road, a tick or two after it is added.
             self.twin_ok = False
             logging.debug('SUMO traffic: the drive\'s car: %s', error)
+
+    def _take_off_if_in_view(self, actor_id, here):
+        """A car SUMO just put on the road, within RADIUS of the drive's car, would
+        appear out of nothing: it goes again before CARLA has it."""
+        if here is None:
+            return False
+        try:
+            x, y = self._traci.vehicle.getPosition(actor_id)
+            offset_x, offset_y = self._bridge.offset
+            if math.hypot(x - offset_x - here.x, -(y - offset_y) - here.y) > RADIUS:
+                return False
+            self._traci.vehicle.remove(actor_id)
+            return True
+        except self._traci.exceptions.TraCIException:
+            return False
+
+    def _extend_route(self, actor_id):
+        """Keeps ROUTE_AHEAD m of route in front of a car that is in CARLA."""
+        vehicle, net = self._traci.vehicle, self.sumo.net
+        try:
+            index = vehicle.getRouteIndex(actor_id)
+            if index < 0:
+                return
+            route = list(vehicle.getRoute(actor_id)[index:])
+            edges = [net.getEdge(e) for e in route]
+            ahead = sum(e.getLength() for e in edges[1:])
+            if ahead >= ROUTE_AHEAD:
+                return
+            while ahead < ROUTE_AHEAD:
+                edge = next_edge(edges[-1], edges[-3:])
+                if edge is None:
+                    break
+                edges.append(edge)
+                route.append(edge.getID())
+                ahead += edge.getLength()
+            if len(route) > 1:
+                vehicle.setRoute(actor_id, route)
+        except self._traci.exceptions.TraCIException:
+            pass   # on its way through a junction: the next check gets it
 
     def clear_around(self, transform):
         """Takes the SUMO cars off that are in, or coming at, the place transform

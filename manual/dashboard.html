@@ -26,7 +26,7 @@
   to tap or hold on the shifter or the wheel, or tip.gesture, the movement the driver makes. Once the driver
   has done it, tip.complete shows it done, with a chime of its own.
   Zones: speed, throttle, brake, gear, cruise, acc, autopilot, driveMode, regen.
-  Shifter buttons: speed-up, speed-down, cc, acc, autopilot, dpad-up (gap -), dpad-down (gap +).
+  Shifter buttons: speed-up, speed-down, cc, acc, autopilot, dpad-up (gap +), dpad-down (gap -).
   Wheel (tip.control.device = 'wheel'): paddle-left, paddle-right, regen-down, regen-up.
   Gestures: release-throttle, press-brake, press-throttle.
 
@@ -119,6 +119,13 @@ button { font: inherit; }
    left, cards that pop out on the right. A card slides in and out; kept in
    step across redraws by a negative animation-delay from when it changed. */
 #mini { width: 1920px; height: 1080px; box-sizing: border-box; padding: 36px 48px; gap: 32px; background: #F2F3F5; color: #171A20; font-family: 'Barlow', system-ui, sans-serif; --accent: #3E6AE1; }
+/* A paddle past the last drive mode: the mode shakes its head. */
+.nuh-uh { animation: nuhUh 0.6s ease-in-out both; }
+@keyframes nuhUh {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-14px); } 35% { transform: translateX(12px); }
+  55% { transform: translateX(-9px); } 75% { transform: translateX(6px); } 90% { transform: translateX(-2px); }
+}
 .pop-in { animation: popIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .pop-out { animation: popOut 0.35s ease-in both; }
 @keyframes popIn { from { opacity: 0; transform: translateX(80px); } to { opacity: 1; transform: none; } }
@@ -159,7 +166,7 @@ var DEFAULTS = {
   setSpeed: null,         // km/h; null when no speed is set
   throttleOverride: null, // true while the pedal overrides an assist; null works it out from the bars
   accGap: 2,              // 1..4
-  accLead: null,          // m to the car ahead while ACC is on; null when there is none
+  accLead: null,          // m to the car ahead while ACC or the autopilot is on; null when there is none
   accWaiting: false,      // ACC stopped behind a car, waiting for its button or the throttle
   apTarget: 30,           // km/h
   apDistance: 17,         // m
@@ -168,6 +175,8 @@ var DEFAULTS = {
   brake: 0,               // %
   gear: 'D',              // P | R | N | D
   driveMode: 'Normal',    // Eco | Normal | Dynamic
+  modeBlocked: 0,         // counts paddle pulls past the last mode
+  modeBlockedEnd: null,   // lowest | highest: the end that pull hit
   regenLevel: 1,          // 0..3: Off | Low | Medium | Maximum
   showTip: false,
   tip: null,              // {title, body, why, highlight, control | gesture, action, complete}; null uses SAMPLE_TIP
@@ -185,6 +194,16 @@ var SAMPLE_TIP = {
 };
 
 var SPEED_MAX = 160;
+
+// A paddle pulled past the last drive mode, when, and how it shows: the shake
+// goes by the clock, so that redrawing the page does not restart it.
+var MODE_BLOCK_MS = 2500, MODE_SHAKE_MS = 600;
+var lastBlocked = null, blockedAt = 0;
+
+function modeBlockedNow() { return blockedAt && Date.now() - blockedAt < MODE_BLOCK_MS; }
+function modeShake() {
+  return modeBlockedNow() ? 'animation-delay: -' + Math.min(MODE_SHAKE_MS, Date.now() - blockedAt) + 'ms; ' : '';
+}
 
 function esc(v) {
   return String(v).replace(/[&<>"']/g, function (c) {
@@ -247,6 +266,7 @@ function render(p) {
   var accSpeed = assist.indexOf('ACC') === 0 ? setSpeed : '–';
   var lead = assist.indexOf('ACC') === 0 ? p.accLead : null;
   var ap = assist === 'Autopilot' ? Object.assign({}, active, { chipText: 'DRIVING' }) : off;
+  var apLead = assist === 'Autopilot' ? p.accLead : null;
 
   var gapSeconds = ['1.0 s', '1.5 s', '2.0 s', '2.5 s'][gap - 1];
   var markerSpeed = assist === 'Autopilot' ? p.apTarget : setSpeed;
@@ -348,7 +368,7 @@ function render(p) {
     '<div style="display: flex; gap: 8px; align-items: center">' + chip('ACC') + chip('SPEED + / −') + chip('GAP − / +') + '</div>', 'acc');
 
   h += card(ap, cardHead('Autopilot', ap) +
-    '<div style="display: flex; gap: 40px">' +
+    '<div style="display: flex; gap: 28px">' +
     '<div style="display: flex; flex-direction: column; gap: 2px">' +
     '<span style="font-size: 15px; font-weight: 600; letter-spacing: 0.06em; color: #5C5E62">TARGET SPEED</span>' +
     '<span style="font-family: \'Barlow Semi Condensed\', sans-serif; font-size: ' + z(44, 32) + 'px; font-weight: 600; line-height: 1; color: ' + ap.value + '">' + esc(p.apTarget) + ' <span style="font-size: 18px; color: #5C5E62">km/h</span></span>' +
@@ -356,6 +376,10 @@ function render(p) {
     '<div style="display: flex; flex-direction: column; gap: 2px">' +
     '<span style="font-size: 15px; font-weight: 600; letter-spacing: 0.06em; color: #5C5E62">FOLLOWING DISTANCE</span>' +
     '<span style="font-family: \'Barlow Semi Condensed\', sans-serif; font-size: ' + z(44, 32) + 'px; font-weight: 600; line-height: 1; color: ' + ap.value + '">' + esc(p.apDistance) + ' <span style="font-size: 18px; color: #5C5E62">m</span></span>' +
+    '</div>' +
+    '<div style="display: flex; flex-direction: column; gap: 2px">' +
+    '<span style="font-size: 15px; font-weight: 600; letter-spacing: 0.06em; color: #5C5E62">CAR AHEAD</span>' +
+    '<span style="font-family: \'Barlow Semi Condensed\', sans-serif; font-size: ' + z(44, 32) + 'px; font-weight: 600; line-height: 1; color: ' + ap.value + '">' + (apLead !== null ? esc(apLead) + ' <span style="font-size: 18px; color: #5C5E62">m</span>' : '–') + '</span>' +
     '</div></div>' +
     '<div style="display: flex; gap: 8px; align-items: center">' + chip('AUTOPILOT') + chip('SPEED + / −') + chip('GAP − / +') +
     '<span style="font-size: 15px; color: #5C5E62; margin-left: 6px">Brake or steer to take over</span></div>', 'autopilot');
@@ -411,12 +435,14 @@ function render(p) {
     '<span style="font-size: 24px; font-weight: 600">Drive mode</span>' +
     '<div style="display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: #F2F3F5">';
   ['Eco', 'Normal', 'Dynamic'].forEach(function (m) {
-    var on = m === p.driveMode;
-    h += '<span style="flex-grow: 1; flex-basis: 0; text-align: center; padding: ' + z('14px 0', '8px 0') + '; border-radius: 8px; font-size: 22px; font-weight: 600; background: ' + (on ? accent : 'transparent') + '; color: ' + (on ? '#FFFFFF' : '#5C5E62') + '">' + m + '</span>';
+    var on = m === p.driveMode, no = on && modeBlockedNow();
+    h += '<span' + (no ? ' class="nuh-uh"' : '') + ' style="' + (no ? modeShake() : '') + 'flex-grow: 1; flex-basis: 0; text-align: center; padding: ' + z('14px 0', '8px 0') + '; border-radius: 8px; font-size: 22px; font-weight: 600; background: ' + (no ? '#D97706' : (on ? accent : 'transparent')) + '; color: ' + (on ? '#FFFFFF' : '#5C5E62') + '">' + m + '</span>';
   });
   h += '</div>' +
-    '<div style="display: flex; justify-content: space-between; font-size: 16px; color: #5C5E62">' +
-    '<span>‹ Left paddle</span><span>Right paddle ›</span></div></div>';
+    (modeBlockedNow()
+      ? '<div style="font-size: 16px; font-weight: 600; text-align: center; color: #D97706">' + esc(p.driveMode) + ' is the ' + esc(p.modeBlockedEnd) + ' mode' + '</div></div>'
+      : '<div style="display: flex; justify-content: space-between; font-size: 16px; color: #5C5E62">' +
+        '<span>‹ Left paddle</span><span>Right paddle ›</span></div></div>');
 
   h += '<div' + zoneAttr(p, 'regen') + 'flex-grow: 1; box-sizing: border-box; padding: ' + z(22, 12) + 'px; border-radius: 16px; border: 2px solid #E4E5E7; background: #FFFFFF; display: flex; flex-direction: column; justify-content: space-between">' + zoneTag(p, 'regen') +
     '<div style="display: flex; align-items: baseline; justify-content: space-between">' +
@@ -482,7 +508,7 @@ GESTURES['press-throttle'] = GESTURES['press-brake'].replace('>BRAKE<', '>ACCELE
 var DEVICES = {
   // The shifter unit, as the reference sheet places its buttons: the silver
   // panel (speed up at the top, down below; left and right unused), the
-  // d-pad (up gap -, down gap +) and the red row: cruise control, adaptive
+  // d-pad (up gap +, down gap -) and the red row: cruise control, adaptive
   // cruise, the autopilot, one unused. Its body runs on below the edge,
   // with the H-gate.
   shifter: {
@@ -746,20 +772,22 @@ function miniCard(p, name) {
       '<div style="display: flex; flex-direction: column; align-items: center; gap: 5px">' + leadCar + bars + '</div>' + side + '</div>';
   }
   if (name === 'autopilot') {
-    var apCar = '<svg width="32" height="22" viewBox="0 0 40 26" fill="none" stroke="' + colour + '" stroke-width="3" aria-hidden="true"><rect x="8" y="2" width="24" height="22" rx="6"></rect><line x1="12" y1="17" x2="28" y2="17"></line></svg>';
+    var apLead = on ? p.accLead : null;
+    var apCar = '<svg width="32" height="22" viewBox="0 0 40 26" fill="none" stroke="' + (apLead !== null ? colour : '#E4E5E7') + '" stroke-width="3" aria-hidden="true"><rect x="8" y="2" width="24" height="22" rx="6"></rect><line x1="12" y1="17" x2="28" y2="17"></line></svg>';
     var apSide = on && p.throttleOverride ? chipText('YOU', '#D97706', '#FDEDD3')
-      : '<span style="width: 72px; text-align: right; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: #5C5E62">' + (on ? esc(p.apDistance) + ' m' : '') + '</span>';
+      : '<span style="width: 72px; text-align: right; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: #5C5E62">' + (apLead !== null ? esc(apLead) + ' m' : '') + '</span>';
     return open + '<span style="color: ' + colour + '">' + icon('autopilot', 64) + '</span>' + speedText(p.apTarget) +
       '<div style="display: flex; flex-direction: column; align-items: center; gap: 5px">' + apCar + bars + '</div>' + apSide + '</div>';
   }
   if (name === 'driveMode') {
     var modes = '';
     ['Eco', 'Normal', 'Dynamic'].forEach(function (m) {
-      var sel = m === p.driveMode;
-      modes += '<span style="flex-grow: 1; flex-basis: 0; height: 76px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: ' + (sel ? accent : 'transparent') + '; color: ' + (sel ? '#FFFFFF' : '#A2A3A5') + '">' +
-        icon(m, 46).replace(/fill="#FFFFFF"/g, 'fill="' + (sel ? accent : '#F2F3F5') + '"') + '</span>';
+      var sel = m === p.driveMode, no = sel && modeBlockedNow();
+      modes += '<span' + (no ? ' class="nuh-uh"' : '') + ' style="' + (no ? modeShake() : '') + 'flex-grow: 1; flex-basis: 0; height: 76px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: ' + (no ? '#D97706' : (sel ? accent : 'transparent')) + '; color: ' + (sel ? '#FFFFFF' : '#A2A3A5') + '">' +
+        icon(m, 46).replace(/fill="#FFFFFF"/g, 'fill="' + (no ? '#D97706' : (sel ? accent : '#F2F3F5')) + '"') + '</span>';
     });
-    return open + '<div style="flex-grow: 1; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: #F2F3F5">' + modes + '</div></div>';
+    return open + '<div style="flex-grow: 1; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: #F2F3F5">' + modes + '</div></div>' +
+      (modeBlockedNow() ? '<div style="width: fit-content; margin: 10px auto 0; padding: 6px 18px; border-radius: 12px; border: 2px solid #F0C27C; background: #FFF8ED; font-size: 24px; font-weight: 600; color: #D97706">' + esc(p.driveMode) + ' is the ' + esc(p.modeBlockedEnd) + ' mode' + '</div>' : '');
   }
   var regen = Math.max(0, Math.min(3, p.regenLevel));
   var steps = '';
@@ -853,7 +881,9 @@ function renderMiniRoad(p) {
   var accent = p.accent;
   var ap = p.activeAssist === 'Autopilot';
   var acc = p.activeAssist === 'ACC';
-  var lead = acc ? p.accLead : null;
+  var lead = acc || ap ? p.accLead : null;
+  var leadT = lead !== null ? Math.max(0, Math.min(1, lead / 80)) : 0;
+  var leadY = 470 - leadT * 400;
   var s = '<svg width="560" height="760" viewBox="0 0 560 760" fill="none" aria-hidden="true">' +
     '<defs><linearGradient id="rail-fill" x1="0" y1="0" x2="0" y2="1">' +
     '<stop offset="0" stop-color="' + accent + '" stop-opacity="0"></stop>' +
@@ -865,7 +895,7 @@ function renderMiniRoad(p) {
     s += '<path d="M230 0 L330 0 L440 760 L120 760 Z" fill="url(#rail-fill)"></path>' +
       '<path d="M230 0 L120 760 M330 0 L440 760" stroke="' + accent + '" stroke-opacity="0.25" stroke-width="18"></path>' +
       '<path d="M230 0 L120 760 M330 0 L440 760" stroke="' + accent + '" stroke-width="6"></path>' +
-      '<path class="rail-flow" style="' + flow + '" d="M280 0 V586" stroke="' + accent + '" stroke-opacity="0.6" stroke-width="8" stroke-linecap="round" stroke-dasharray="20 40"></path>';
+      '<path class="rail-flow" style="' + flow + '" d="M280 0 V' + (lead !== null ? Math.max(0, leadY - 10) : 586) + '" stroke="' + accent + '" stroke-opacity="0.6" stroke-width="8" stroke-linecap="round" stroke-dasharray="20 40"></path>';
   } else {
     s += '<path d="M230 0 L120 760 M330 0 L440 760" stroke="#D0D1D2" stroke-width="4" stroke-dasharray="28 34"></path>';
   }
@@ -881,16 +911,15 @@ function renderMiniRoad(p) {
   if (lead !== null) {
     // 0 m just ahead of your car, 80 m and more near the horizon; the gap
     // between them in metres beside the line.
-    var t = Math.max(0, Math.min(1, lead / 80));
-    var y = 470 - t * 400, w = 70 - t * 36, hgt = w * 1.5;
+    var y = leadY, w = 70 - leadT * 36, hgt = w * 1.5;
     var top = y + hgt + 10, mid = (top + 590) / 2;
     s += '<path d="M280 ' + top + ' V590" stroke="' + accent + '" stroke-width="5" stroke-linecap="round"></path>' +
       '<path d="M266 ' + top + ' H294 M266 590 H294" stroke="' + accent + '" stroke-width="5" stroke-linecap="round"></path>' +
       '<rect x="' + (280 - w / 2) + '" y="' + y + '" width="' + w + '" height="' + hgt + '" rx="' + (w * 0.3) + '" fill="#A2A3A5"></rect>' +
       '<rect x="306" y="' + (mid - 24) + '" width="104" height="48" rx="12" fill="#FFFFFF" stroke="' + accent + '" stroke-width="2"></rect>' +
       '<text x="358" y="' + (mid + 11) + '" text-anchor="middle" style="font: 700 32px ' + COND + '" fill="' + accent + '">' + esc(lead) + ' m</text>';
-  } else if (acc) {
-    s += '<text x="280" y="420" text-anchor="middle" style="font: 600 26px Barlow, sans-serif" fill="#8E8E93">No car ahead</text>';
+  } else if (acc || ap) {
+    s += '<text x="280" y="420" text-anchor="middle" style="font: 600 26px Barlow, sans-serif; paint-order: stroke" stroke="#F2F3F5" stroke-width="10" fill="#8E8E93">No car ahead</text>';
   }
   return s + '</svg>';
 }
@@ -1093,6 +1122,10 @@ var shownMini = null;
 var shownRoad = null;
 
 function draw() {
+  if (state.modeBlocked !== lastBlocked) {
+    if (lastBlocked !== null) blockedAt = modeAt = Date.now();
+    lastBlocked = state.modeBlocked;
+  }
   assistChime(state.activeAssist);
   updateHum();
   if (state.activeAssist === 'Autopilot' && !autopilotSince) autopilotSince = Date.now();
@@ -1169,7 +1202,7 @@ window.addEventListener('resize', fit);
 fit();
 draw();
 // The minimal layout's cards pop back in on a timer, with or without new data.
-setInterval(function () { if (state.layout === 'minimal') draw(); }, 200);
+setInterval(function () { if (state.layout === 'minimal' || blockedAt) draw(); }, 200);
 
 var events = new EventSource('events');
 events.onmessage = function (e) {

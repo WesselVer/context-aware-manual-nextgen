@@ -72,15 +72,15 @@ DPAD_DOWN = 'dpad-down'
 # cruise, the autopilot, and one unused. Each assist's button switches it on,
 # resumes it from standby, and switches it off. The silver cluster's top and
 # bottom (15, 17) step the set speed up and down; its left and right (16, 18)
-# are unused. Gap - and + set the following distance, on the d-pad: up
-# closes the gap to the car ahead, down opens it.
+# are unused. Gap + and - set the following distance, on the d-pad: up
+# opens the gap to the car ahead, down closes it.
 CC_BUTTON = 0
 ACC_BUTTON = 1
 AUTOPILOT_BUTTON = 2
 CRUISE_UP = 15
 CRUISE_DOWN = 17
-GAP_DOWN = DPAD_UP
-GAP_UP = DPAD_DOWN
+GAP_UP = DPAD_UP
+GAP_DOWN = DPAD_DOWN
 
 # Pedals travel too little near the ends to reach the extremes reliably.
 PEDAL_DEADZONE = 0.03
