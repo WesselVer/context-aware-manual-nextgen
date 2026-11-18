@@ -3,3 +3,13 @@ study_data/
 _out/
 *.log
 .venv/
+
+# Participant data never goes in the repository (also checked by .githooks/pre-commit)
+*.csv
+*.rec
+drive.json
+report.html
+drive-*
+events-*
+session-*/
+P[0-9]*/
