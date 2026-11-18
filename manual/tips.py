@@ -11,7 +11,6 @@ measures in the world:
   cars_near      vehicles close by
   walkers_near   pedestrians close by
   junction_ahead m to a junction coming up on the road ahead, or None
-  indicating     a blinker is on
 
 It returns the values for the dashboard's tip panel and manual indicator.
 
@@ -27,7 +26,7 @@ are no experience levels, as the car is new to everyone. A tip comes up when
     straight away: starting the manual is the driver settling in);
   - and the moment is safe (Tips.moment): standing still, steady on a
     straight, or a quiet road, with no junction coming up, no crowd of cars
-    or people, and no manoeuvre (reversing, turning, indicating, braking
+    or people, and no manoeuvre (reversing, turning, braking
     hard, though not the autopilot's braking) in the last
     MANOEUVRE_HOLD_SECONDS.
 It stays until the driver does what it teaches (`learn`), then shows a
@@ -554,8 +553,6 @@ class Tips(object):
             manoeuvre = 'reversing'
         elif speed > 3.0 and yaw > TURNING_DEG_S:
             manoeuvre = 'turning'
-        elif ctx.get('indicating'):
-            manoeuvre = 'indicating'
         elif (state.get('brake', 0) >= HARD_BRAKE and speed > 5.0 and
               state.get('activeAssist') != 'Autopilot'):
             # The autopilot brakes hard as a matter of course; that is no

@@ -35,7 +35,7 @@ METRIC_ROWS = [
     ('following_s', 'Time following a car', lambda v: '%.0f s' % v),
     ('short_headway_share', 'Tailgating (of following time)', lambda v: '%.0f%%' % (100 * v)),
     ('sdlp_m', 'SDLP (lane wander)', lambda v: '–' if v is None else '%.0f cm' % (100 * v)),
-    ('unsignalled_crossings', 'Lane crossings without blinker', str),
+    ('lane_crossings', 'Lane crossings', str),
     ('speeding_share', 'Time over the speed limit', lambda v: '%.0f%%' % (100 * v)),
     ('harsh_brakes', 'Harsh brakes', str),
     ('assist_share', 'Time with each assist', lambda v: ', '.join(
@@ -46,7 +46,7 @@ METRIC_ROWS = [
 
 SCORE_RULES = {
     'safety': '100, less 40 per collision and 15 per close call each minute, and up to 50 for tailgating',
-    'lane': '100 at an SDLP of 20 cm or less, 0 at 50 cm; less 15 per lane crossing without blinker each minute',
+    'lane': '100 at an SDLP of 20 cm or less, 0 at 50 cm',
     'speed': 'the share of the moving time at or under the limit (+5 km/h)',
     'smooth': '100, less 25 per harsh brake each minute',
     'features': 'the share of the features the tips showed that were used again; left out when no tip was shown',
@@ -203,7 +203,7 @@ def summary_row(participant, drive):
             row['%s_%s' % (name, key)] = next((p['score'] for p in s['parts'] if p['key'] == key), None) if s else None
         m = phase['metrics'] if phase else {}
         for key in ('duration_s', 'distance_km', 'collisions', 'close_calls', 'short_headway_share', 'sdlp_m',
-                    'unsignalled_crossings', 'speeding_share', 'harsh_brakes', 'takeovers'):
+                    'lane_crossings', 'speeding_share', 'harsh_brakes', 'takeovers'):
             row['%s_%s' % (name, key)] = m.get(key)
         row['%s_features_used' % name] = len(m['prompted_features_used']) if 'prompted_features_used' in m else None
         row['%s_features_prompted' % name] = len(m['prompted_features']) if 'prompted_features' in m else None

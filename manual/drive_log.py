@@ -13,7 +13,6 @@ probe):
   lead         (gap in m, speed in km/h) of the car ahead in the lane, or None
   a_long       m/s2 along the car, - braking (Vehicle.get_acceleration)
   steer        -1..1, the steering applied
-  indicating   a blinker is on
   brake_pedal  0..1, the driver's own brake, before cruise control and regen
   x, y         m
 
@@ -35,7 +34,7 @@ The metrics are the ones the driving-simulator literature uses, from what
 CARLA gives: collisions (the collision sensor), close calls (time to
 collision with the car ahead under TTC_CRITICAL_S), tailgating (time
 headway under THW_SHORT_S), lane keeping (the standard deviation of lateral
-position, SDLP, and lane crossings without a blinker from the lane-invasion
+position, SDLP, and lane crossings from the lane-invasion
 sensor), speeding (over the map's limit) and harsh braking. Feature use is
 which of the features the tips prompted the participant to try they use
 again, and how long the assists were on. score() turns them into five parts of 0-100,
@@ -124,7 +123,7 @@ def feature_group(feature):
 
 COLUMNS = ['t', 'phase', 'x', 'y', 'speed', 'limit', 'assist', 'gear', 'drive_mode', 'regen',
            'pedal', 'throttle', 'brake', 'brake_pedal', 'steer', 'a_long', 'lateral', 'lane', 'junction',
-           'lead_gap', 'lead_speed', 'thw', 'ttc', 'indicating', 'tip']
+           'lead_gap', 'lead_speed', 'thw', 'ttc', 'tip']
 
 # What each metric is, for drive.json and the report.
 METRICS = {
@@ -141,8 +140,8 @@ METRICS = {
               'of at least %.0f s in one lane, outside junctions, above %.0f km/h, while the driver steers, '
               'leaving out %.0f s either side of each lane crossing.'
               % (SDLP_MIN_STRETCH_S, SDLP_MIN_KMH, SDLP_LANE_CHANGE_S),
-    'unsignalled_crossings': 'Lane markings crossed without a blinker while the driver steers, from CARLA\'s '
-                             'lane-invasion sensor.',
+    'lane_crossings': 'Lane markings crossed while the driver steers, from CARLA\'s lane-invasion sensor. '
+                      'Shown for information: changing lanes costs no points.',
     'speeding_share': 'Share of the time moving (over %.0f km/h) above the speed limit + %.0f km/h; the limit '
                       'is the map\'s signs, or the driver script\'s --speed-limit.' % (MOVING_KMH, SPEEDING_MARGIN_KMH),
     'mean_speed_kmh': 'Average speed while moving.',
@@ -246,8 +245,8 @@ def metrics(rows, events, prompted=()):
         following_s=round(following, 1),
         short_headway_share=round(short / following, 3) if following else 0.0,
         sdlp_m=round(math.sqrt(sq / n), 3) if n else None,
-        unsignalled_crossings=sum(1 for e in events if e['kind'] == 'lane-crossing' and
-                                  e['detail'].startswith('unsignalled')),
+        lane_crossings=sum(1 for e in events if e['kind'] == 'lane-crossing' and
+                           e['detail'].startswith('driver')),
         speeding_share=round(over / moving, 3) if moving else 0.0,
         mean_speed_kmh=round(speed_sum / moving, 1) if moving else 0.0,
         harsh_brakes=harsh,
@@ -280,9 +279,8 @@ def score(m):
     phase compare.
       Safety      100, less 40 a collision, 15 a close call, and up to 50
                   for the share of following time spent tailgating
-      Lane        100 at an SDLP of SDLP_GOOD_M or less, 0 at SDLP_POOR_M,
-                  less 15 an unsignalled lane crossing; 100 when the
-                  autopilot did all the steering
+      Lane        100 at an SDLP of SDLP_GOOD_M or less, 0 at SDLP_POOR_M;
+                  100 when the autopilot did all the steering
       Speed       the share of the moving time within the limit
       Smoothness  100, less 25 a harsh brake
       Features    the share of the features the tips prompted that the
@@ -312,10 +310,6 @@ def score(m):
     else:
         lane = 100 * (SDLP_POOR_M - m['sdlp_m']) / (SDLP_POOR_M - SDLP_GOOD_M)
         note = 'wandered %.0f cm in the lane' % (100 * m['sdlp_m'])
-    lane -= 15 * per_min(m['unsignalled_crossings'])
-    if m['unsignalled_crossings']:
-        note += ', %d lane crossing%s without a blinker' % (
-            m['unsignalled_crossings'], 's' if m['unsignalled_crossings'] > 1 else '')
     parts.append(dict(key='lane', name='Lane keeping', score=_clamp(lane), note=note))
 
     parts.append(dict(key='speed', name='Speed', score=_clamp(100 * (1 - m['speeding_share'])),
@@ -442,7 +436,7 @@ class DriveLog(object):
         return round(self._clock() - self._t0, 2)
 
     def event(self, kind, detail=''):
-        """A thing that happened: collision, lane-crossing (signalled/unsignalled), ..."""
+        """A thing that happened: collision, lane-crossing (driver/autopilot), ..."""
         if not self.running:
             return
         if kind in ('collision', 'lane-crossing'):
@@ -508,7 +502,7 @@ class DriveLog(object):
                    lateral=r(probe.get('lateral'), 3), lane=probe.get('lane'),
                    junction=int(bool(probe.get('junction'))),
                    lead_gap=r(lead[0], 1) if lead else None, lead_speed=r(lead[1], 1) if lead else None,
-                   thw=thw, ttc=ttc, indicating=int(bool(probe.get('indicating'))),
+                   thw=thw, ttc=ttc,
                    tip=tip.get('id') if tip else '')
         self._csv.writerow(row)
         self._rows.append(row)

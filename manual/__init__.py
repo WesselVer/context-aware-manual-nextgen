@@ -319,7 +319,7 @@ def _demo():
             speed = 50 + 1.5 * math.sin(t / 3.0)
             state = dict(activeAssist='None', gear='D', brake=0)
             context = dict(speed=speed, yaw_rate=0.0, cars_near=0, walkers_near=0,
-                           junction_ahead=20.0 if t % 40 > 32 else None, indicating=False)
+                           junction_ahead=20.0 if t % 40 > 32 else None)
             state.update(tips.update(state, context))
             dashboard.update(speed=int(round(speed)), **state)
             time.sleep(1.0 / 60)

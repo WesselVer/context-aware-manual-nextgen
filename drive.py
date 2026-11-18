@@ -104,7 +104,6 @@ Use ARROWS or WASD keys for control.
 
     L            : toggle next light type
     SHIFT + L    : toggle high beam
-    Z/X          : toggle right/left blinker
     I            : toggle interior light
 
     TAB          : change sensor position
@@ -119,7 +118,7 @@ Use ARROWS or WASD keys for control.
     B            : start the context-aware manual
     P            : skip the tip on screen (or the one it waits for), for testing
     hold R       : context-aware manual off
-    hold Z (5 s) : reset for the next participant (a tap is still the left blinker)
+    hold Z (5 s) : reset for the next participant
     F            : start the scored free drive at the end of the test; again to end it
     J            : swap the dashboard between the full and the minimal layout
 
@@ -200,7 +199,6 @@ try:
     from pygame.locals import K_t
     from pygame.locals import K_v
     from pygame.locals import K_w
-    from pygame.locals import K_x
     from pygame.locals import K_z
     from pygame.locals import K_MINUS
     from pygame.locals import K_EQUALS
@@ -713,7 +711,7 @@ class DrivingContext(object):
         self._next = 0.0
         self._around = (0, 0, None)
 
-    def update(self, ego, indicating):
+    def update(self, ego):
         """The context Tips.update() takes."""
         speed = _speed_kmh(ego)
         now = time.time()
@@ -722,7 +720,7 @@ class DrivingContext(object):
             self._around = self._measure(ego, speed)
         cars, walkers, junction = self._around
         return dict(speed=speed, yaw_rate=ego.get_angular_velocity().z, cars_near=cars,
-                    walkers_near=walkers, junction_ahead=junction, indicating=indicating)
+                    walkers_near=walkers, junction_ahead=junction)
 
     def _measure(self, ego, speed):
         here = ego.get_location()
@@ -767,7 +765,7 @@ class StudyProbe(object):
         self._leads = LeadFinder(world)
         self._speed_limit = speed_limit
 
-    def measure(self, ego, indicating, brake_pedal):
+    def measure(self, ego, brake_pedal):
         transform = ego.get_transform()
         here = transform.location
         lateral = lane = None
@@ -785,7 +783,7 @@ class StudyProbe(object):
         return dict(speed=_speed_kmh(ego), limit=limit, lateral=lateral, lane=lane,
                     junction=junction, lead=self._leads.update(ego),
                     a_long=a.x * f.x + a.y * f.y + a.z * f.z, steer=ego.get_control().steer,
-                    indicating=indicating, brake_pedal=brake_pedal, x=here.x, y=here.y)
+                    brake_pedal=brake_pedal, x=here.x, y=here.y)
 
 
 def drain_sensor_log(sensor):
@@ -1229,8 +1227,7 @@ class KeyboardControl(object):
         # The context-aware manual, and when R went down to turn it off.
         self._tips = tips
         self._r_down = None
-        # When Z went down, and whether its hold has reset the test (so its
-        # release does not also work the left blinker).
+        # When Z went down, and whether this hold has reset the test already.
         self._z_down = None
         self._z_held = False
         # The user test: its log, and whether it also runs CARLA's recorder.
@@ -1305,9 +1302,7 @@ class KeyboardControl(object):
                     self._r_down = None
                 if event.key == K_z:
                     self._z_down = None
-                    if self._z_held:
-                        self._z_held = False
-                        continue
+                    self._z_held = False
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
@@ -1478,10 +1473,6 @@ class KeyboardControl(object):
                             current_lights ^= carla.VehicleLightState.Fog
                     elif event.key == K_i:
                         current_lights ^= carla.VehicleLightState.Interior
-                    elif event.key == K_z:
-                        current_lights ^= carla.VehicleLightState.LeftBlinker
-                    elif event.key == K_x:
-                        current_lights ^= carla.VehicleLightState.RightBlinker
 
         if self._r_down is not None and time.time() - self._r_down >= CONTEXT_OFF_HOLD_SECONDS:
             self._r_down = None
@@ -1874,12 +1865,6 @@ class KeyboardControl(object):
     @property
     def autopilot_enabled(self):
         return self._autopilot_enabled
-
-    @property
-    def indicating(self):
-        """A blinker is on."""
-        blinkers = carla.VehicleLightState.LeftBlinker | carla.VehicleLightState.RightBlinker
-        return bool(getattr(self, '_lights', 0) & blinkers)
 
     def _parse_walker_keys(self, keys, milliseconds, world):
         self._control.speed = 0.0
@@ -2652,7 +2637,7 @@ def game_loop(args):
                 wheel.update_ffb(world.player, world.imu_sensor,
                                  controller.autopilot_enabled, clock.get_time() / 1000.0)
             state = controller.dashboard_state()
-            state.update(tips.update(state, context.update(world.player, controller.indicating)))
+            state.update(tips.update(state, context.update(world.player)))
             if drive_log.running:
                 for hit in drain_sensor_log(world.collision_sensor):
                     drive_log.event('collision', hit['other'])
@@ -2660,10 +2645,9 @@ def game_loop(args):
                     markings = [m for m in crossing['markings'] if m != 'NONE']
                     if not markings:
                         continue
-                    who = ('autopilot' if controller.autopilot_enabled else
-                           'signalled' if controller.indicating else 'unsignalled')
+                    who = 'autopilot' if controller.autopilot_enabled else 'driver'
                     drive_log.event('lane-crossing', '%s %s' % (who, '+'.join(markings)))
-                state.update(drive_log.frame(state, probe.measure(world.player, controller.indicating, controller.brake_pedal)))
+                state.update(drive_log.frame(state, probe.measure(world.player, controller.brake_pedal)))
             else:
                 drain_sensor_log(world.collision_sensor)
                 drain_sensor_log(world.lane_invasion_sensor)

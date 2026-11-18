@@ -73,7 +73,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 | ![The dashboard with the cruise-control tip: a drawing of the shifter with the CC button, and why now](docs/img/dashboard_tip.jpg) | ![The dashboard with adaptive cruise on, following a car at 42 m, and the manual holding back the next tip because of traffic](docs/img/dashboard_acc.jpg) |
 | *The first tip: on a quiet road the manual shows where CC is on the shifter. The grey lines say why it picked this moment.* | *Adaptive cruise follows the car ahead. Four cars are close by, so the next tip waits.* |
 
-![A participant's driving report: driving score of the free drive and the guided part, with the rule behind each part](docs/img/driving_report.jpg)
+![An example driving report, with made-up numbers: driving score of the free drive and the guided part, with the rule behind each part](docs/img/driving_report.jpg)
 
 *The driving report of a pilot participant (`python -m manual.report`): the score of the free drive beside the
 guided part, every part with the rule behind it, and the driving metrics below.*
@@ -83,7 +83,7 @@ guided part, every part with the rule behind it, and the driving metrics below.*
 ![How it works: the G25 and the two screens, the drive, the context-aware manual, CARLA, SUMO and the drive log](docs/how_it_works.svg)
 
 `drive.py` runs the car on the CARLA server and draws screen 1. Each frame it measures the context (speed, the
-road's speed limit, a junction ahead, cars and people nearby, turning, indicating, braking) and passes it with the
+road's speed limit, a junction ahead, cars and people nearby, turning, braking) and passes it with the
 car's state to the manual (`manual/tips.py`), which decides whether a tip is due and whether now is a good moment.
 The dashboard on screen 2 is a web page (`manual/dashboard.html`) in an Edge or Chrome app window, fed by
 server-sent events from the drive, so it needs nothing beyond Python's standard library. SUMO runs the traffic in
@@ -185,7 +185,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 | **F** | start the scored free drive; F again ends it early |
 | **P** | skip the tip on screen (for testing) |
 | hold **R** | stop the manual |
-| hold **Z** (5 s) | reset for the next participant: closes the test, resets the assists, puts the car at a new place and starts a new log folder (a tap is the left blinker) |
+| hold **Z** (5 s) | reset for the next participant: closes the test, resets the assists, puts the car at a new place and starts a new log folder |
 | **J** | swap the dashboard layout |
 | **F1** | hide or show CARLA's debug HUD |
 | **Esc** | end the drive |
@@ -210,7 +210,7 @@ the last one, and only at a safe moment; it is done when the driver does what it
 | 12 | Drive with one pedal | maximum regen |
 
 A good moment is standing still, steady on a straight, or a quiet road; a bad one is a junction ahead, several
-cars or people close by, or a manoeuvre (turning, indicating, reversing, braking hard) in the last few seconds.
+cars or people close by, or a manoeuvre (turning, reversing, braking hard) in the last few seconds.
 Highway ramps count as junctions. The rules and the tips' wording are in [`manual/tips.py`](manual/tips.py).
 
 ## The G25
@@ -269,7 +269,7 @@ CARLA's measurements, and the total is their mean:
 | Part | Rule |
 |---|---|
 | Safety | 100, less 40 per collision and 15 per close call (time to collision under 1.5 s) each minute, and up to 50 for tailgating |
-| Lane keeping | 100 at an SDLP of 20 cm or less, 0 at 50 cm; less 15 per lane crossing without a blinker each minute |
+| Lane keeping | 100 at an SDLP of 20 cm or less, 0 at 50 cm |
 | Speed | the share of the moving time at or under the limit (+5 km/h) |
 | Smoothness | 100, less 25 per harsh brake each minute |
 | Features | the share of the features the tips showed that were used again |
