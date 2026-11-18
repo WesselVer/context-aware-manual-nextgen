@@ -997,17 +997,33 @@ function renderMiniStatus(p) {
 // (s), length (s)] notes in one voice. Rising is on, falling is off, and
 // autopilot's are three notes to ACC's two, so they are told apart unseen.
 var CHIMES = {
-  tip: { wave: 'sine', volume: 0.16, notes: [[659.25, 0, 1.3], [987.77, 0.16, 1.3]] },
+  tip: { wave: 'sine', volume: 0.42, notes: [[659.25, 0, 1.3], [987.77, 0.16, 1.3]] },
   // A tip done: a quick bright rise, shorter than the tip's own.
-  tipDone: { wave: 'sine', volume: 0.14, notes: [[783.99, 0, 0.35], [1046.5, 0.09, 0.35], [1318.5, 0.18, 0.8]] },
-  accOn: { wave: 'triangle', volume: 0.2, notes: [[587.33, 0, 0.5], [880.0, 0.12, 0.7]] },
-  accOff: { wave: 'triangle', volume: 0.2, notes: [[880.0, 0, 0.5], [587.33, 0.12, 0.7]] },
-  autopilotOn: { wave: 'sine', volume: 0.18, notes: [[523.25, 0, 0.9], [659.25, 0.11, 0.9], [783.99, 0.22, 0.9], [1046.5, 0.33, 1.4]] },
+  tipDone: { wave: 'sine', volume: 0.36, notes: [[783.99, 0, 0.35], [1046.5, 0.09, 0.35], [1318.5, 0.18, 0.8]] },
+  accOn: { wave: 'triangle', volume: 0.46, notes: [[587.33, 0, 0.5], [880.0, 0.12, 0.7]] },
+  accOff: { wave: 'triangle', volume: 0.46, notes: [[880.0, 0, 0.5], [587.33, 0.12, 0.7]] },
+  autopilotOn: { wave: 'sine', volume: 0.36, notes: [[523.25, 0, 0.9], [659.25, 0.11, 0.9], [783.99, 0.22, 0.9], [1046.5, 0.33, 1.4]] },
   // Handing the car back: falling, then a low note held with its octave
   // below for weight, so it is noticed without sounding harsh.
-  autopilotOff: { wave: 'sine', volume: 0.2, notes: [[783.99, 0, 0.5], [659.25, 0.14, 0.5], [523.25, 0.28, 0.5], [392.0, 0.42, 1.4], [196.0, 0.42, 1.4]] }
+  autopilotOff: { wave: 'sine', volume: 0.38, notes: [[783.99, 0, 0.5], [659.25, 0.14, 0.5], [523.25, 0.28, 0.5], [392.0, 0.42, 1.4], [196.0, 0.42, 1.4]] }
 };
 var audio = null;
+// All chimes go through a limiter, so overlapping notes can be loud over the
+// car's sound without distorting.
+var chimeBus = null, chimeBusOf = null;
+function chimeOutput() {
+  if (chimeBusOf !== audio) {
+    chimeBus = audio.createDynamicsCompressor();
+    chimeBus.threshold.value = -6;
+    chimeBus.knee.value = 3;
+    chimeBus.ratio.value = 12;
+    chimeBus.attack.value = 0.003;
+    chimeBus.release.value = 0.15;
+    chimeBus.connect(audio.destination);
+    chimeBusOf = audio;
+  }
+  return chimeBus;
+}
 // When the last chime's notes have all started, plus a beat: a chime asked
 // for before then (a tip done by switching an assist on, say) waits its turn
 // instead of sounding over the other.
@@ -1030,66 +1046,11 @@ function chime(name) {
       gain.gain.exponentialRampToValueAtTime(c.volume, start + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + note[2]);
       osc.connect(gain);
-      gain.connect(audio.destination);
+      gain.connect(chimeOutput());
       osc.start(start);
       osc.stop(start + note[2] + 0.1);
     });
   } catch (e) { /* no audio: the dashboard still shows it */ }
-}
-
-// The EV hum, for a sense of motion: a motor whine whose pitch follows the
-// speed and grows louder under load (throttle or regen), over road and wind
-// noise that grows with the speed. Silent at a standstill.
-var hum = null;
-function updateHum() {
-  try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume();
-    if (!hum) {
-      hum = { out: audio.createGain() };
-      hum.out.gain.value = 0;
-      hum.out.connect(audio.destination);
-      // Whine: a fundamental and a quieter, slightly detuned 3rd harmonic.
-      hum.whine = audio.createGain();
-      hum.whine.gain.value = 0;
-      hum.whine.connect(hum.out);
-      hum.oscs = [[1, 'sine', 1], [3.02, 'triangle', 0.25]].map(function (h) {
-        var osc = audio.createOscillator();
-        var g = audio.createGain();
-        osc.type = h[1];
-        g.gain.value = h[2];
-        osc.connect(g);
-        g.connect(hum.whine);
-        osc.start();
-        return { osc: osc, ratio: h[0] };
-      });
-      // Road and wind: looping white noise through a low-pass filter.
-      var noise = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-      var data = noise.getChannelData(0);
-      for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-      var src = audio.createBufferSource();
-      src.buffer = noise;
-      src.loop = true;
-      hum.filter = audio.createBiquadFilter();
-      hum.filter.type = 'lowpass';
-      hum.road = audio.createGain();
-      hum.road.gain.value = 0;
-      src.connect(hum.filter);
-      hum.filter.connect(hum.road);
-      hum.road.connect(hum.out);
-      src.start();
-    }
-    var t = audio.currentTime;
-    var v = Math.max(0, Number(state.speed) || 0);
-    var load = Math.max(Number(state.appliedThrottle) || 0, (Number(state.brake) || 0) * 0.5) / 100;
-    var moving = Math.min(1, v / 5);
-    var base = 55 + v * 4;  // 55 Hz creeping, about 455 Hz at 100 km/h
-    hum.oscs.forEach(function (o) { o.osc.frequency.setTargetAtTime(base * o.ratio, t, 0.08); });
-    hum.whine.gain.setTargetAtTime(moving * (0.025 + 0.06 * load), t, 0.1);
-    hum.road.gain.setTargetAtTime(Math.min(0.12, v / 900), t, 0.2);
-    hum.filter.frequency.setTargetAtTime(250 + v * 12, t, 0.2);
-    hum.out.gain.setTargetAtTime(state.speed === null ? 0 : 1, t, 0.3);
-  } catch (e) { /* no audio */ }
 }
 
 // The chime for a change of assist: ACC or autopilot coming on or going off
@@ -1130,7 +1091,6 @@ function draw() {
     lastBlocked = state.modeBlocked;
   }
   assistChime(state.activeAssist);
-  updateHum();
   if (state.activeAssist === 'Autopilot' && !autopilotSince) autopilotSince = Date.now();
   if (state.activeAssist !== 'Autopilot') autopilotSince = 0;
   if (state.activeAssist === 'ACC' && !accSince) accSince = Date.now();

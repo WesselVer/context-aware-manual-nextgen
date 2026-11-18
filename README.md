@@ -57,7 +57,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 | | |
 |---|---|
 | **Driver's seat** | CARLA's `manual_control.py`, rebuilt for a study: a driver's-eye camera tuned per car (Lincoln MKZ by default), interior and door mirrors, a steering wheel that turns in the cabin, full screen on screen 1. |
-| **Sound that doesn't stutter** | A quiet electric motor with road and wind noise, made and played by the drive itself, so a late server can't interrupt it. |
+| **Sound that doesn't stutter** | A sporty electric drive tone that grows with speed, load and drive mode, with road and wind noise, made and played by the drive itself so a late server can't interrupt it. It steps back when the dashboard chimes. |
 | **Unreal Engine 5 look** | Lumen lighting and ray-traced shadows at Epic quality, through CARLA 1.0's `Cinematic` camera profile, with NVIDIA DLSS keeping the frame time down. |
 | **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that you can override with the pedals and wheel. |
 | **Logitech G25** | Steering, pedals and the H-shifter as an automatic's P/R/N/D, with force feedback; the shifter's red buttons are cruise, adaptive cruise and autopilot. The keyboard works beside it. |

@@ -26,7 +26,7 @@ working beside it. --wheel picks another wheel by name, --no-wheel ignores it.
 CARLA has no clutch, so pressing it disengages the throttle. The H-shifter is
 an automatic's selector: 1st P, 3rd D, 4th R, anywhere else N.
 
-The car sounds like a quiet electric car, with road and wind noise, played
+The car has a sporty electric drive tone, with road and wind noise, played
 here (car_sound.py) so a late server can't make it stutter: start the server
 with -nosound. --sound-volume sets how loud, 0 for none.
 
@@ -2607,6 +2607,7 @@ def game_loop(args):
         clock = pygame.time.Clock()
         refocus = dashboard is not None
         last_collision = None
+        last_chime_for = None
         while True:
             # A watchdog: if a frame takes more than WATCHDOG_SECONDS, every
             # thread's stack goes to the output, to show where the drive hangs.
@@ -2626,8 +2627,6 @@ def game_loop(args):
             pygame.display.flip()
             v = world.player.get_velocity()
             speed = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
-            if sound is not None:
-                sound.update(speed / 3.6, world.player.get_control())
             if wheel is not None:
                 history = world.collision_sensor.history
                 collision = history[-1] if history else None
@@ -2638,6 +2637,13 @@ def game_loop(args):
                                  controller.autopilot_enabled, clock.get_time() / 1000.0)
             state = controller.dashboard_state()
             state.update(tips.update(state, context.update(world.player)))
+            if sound is not None:
+                sound.update(speed / 3.6, world.player.get_control(), state.get('driveMode'))
+                # The dashboard chimes for these: the car steps back for it.
+                chime_for = (state.get('activeAssist'), repr(state.get('tip')) if state.get('showTip') else None)
+                if last_chime_for is not None and chime_for != last_chime_for:
+                    sound.duck()
+                last_chime_for = chime_for
             if drive_log.running:
                 for hit in drain_sensor_log(world.collision_sensor):
                     drive_log.event('collision', hit['other'])
