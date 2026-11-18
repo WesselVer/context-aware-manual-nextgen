@@ -277,7 +277,12 @@ class SumoTraffic(object):
                 if light is not None:
                     self._lights[landmark.id] = light
         self._common_lights = self.sumo.traffic_light_ids & set(self._lights)
-        for light in self._lights.values():
+        # Those it doesn't (on Town04 all of them: its network has no signals) stay
+        # green: SUMO's cars drive through them, and one frozen on red would hold
+        # up the autopilot for good.
+        for landmark_id, light in self._lights.items():
+            if landmark_id not in self._common_lights:
+                light.set_state(carla.TrafficLightState.Green)
             light.freeze(True)
         self._in_carla = {}       # SUMO id -> CARLA id
         self._twin = None         # (CARLA id of the drive's car, its SUMO id)

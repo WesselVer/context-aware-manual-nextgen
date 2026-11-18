@@ -66,7 +66,7 @@ import time
 # Timing of the tips.
 TIP_GAP_SECONDS = 20.0
 DONE_SECONDS = 4.0
-NEXT_ANYWAY_SECONDS = 120.0
+NEXT_ANYWAY_SECONDS = 60.0
 
 # A good moment: stopped this long, steady (within the band, going straight)
 # this long, or a quiet road (at most QUIET_CARS close by, going straight)
