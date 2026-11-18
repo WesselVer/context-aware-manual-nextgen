@@ -18,10 +18,8 @@ Every driver gets the same tips (TIPS), in order, from the basics up; there
 are no experience levels, as the car is new to everyone. A tip comes up when
   - its turn has come: the tip before it is done, and its own `after`
     condition holds (cruise used for a while, say), or NEXT_ANYWAY_SECONDS
-    have passed without it. A `strict` tip waits for its condition however
-    long it takes (resume only means something with cruise on standby), and an
-    `anytime` tip may come before the tips ahead of it once its condition
-    holds, so it is shown when its moment arises;
+    have passed without it. An `anytime` tip may come before the tips ahead of
+    it once its condition holds, so it is shown when its moment arises;
   - at least TIP_GAP_SECONDS after the last tip (the first may come
     straight away: starting the manual is the driver settling in);
   - and the moment is safe (Tips.moment): standing still, steady on a
@@ -30,7 +28,11 @@ are no experience levels, as the car is new to everyone. A tip comes up when
     hard, though not the autopilot's braking) in the last
     MANOEUVRE_HOLD_SECONDS.
 It stays until the driver does what it teaches (`learn`), then shows a
-short "done" confirmation and goes. A tip the driver does before its turn
+short "done" confirmation and goes. A tip that can only be done in a mode the
+driver is not in (`strict`, or its `doable`) comes after NEXT_ANYWAY_SECONDS as
+a heads-up instead: its `later` text, for HEADS_UP_SECONDS, then the next tip.
+Should the driver enter the mode meanwhile, it becomes the ordinary tip. Until
+it comes, the dashboard keeps nudging them towards the mode. A tip the driver does before its turn
 is skipped: they know it already; so is one whose `known` condition holds
 when its turn comes (switching on an assist that is already on).
 
@@ -66,6 +68,12 @@ import time
 TIP_GAP_SECONDS = 20.0
 DONE_SECONDS = 4.0
 NEXT_ANYWAY_SECONDS = 60.0
+# The following-gap tip waits for a car this close ahead (m), so the change can
+# be seen, but not for longer than NEXT_ANYWAY_SECONDS of adaptive cruise.
+GAP_TIP_LEAD_M = 80.0
+# How long a tip for a mode the driver is not in stays, and what it asks.
+HEADS_UP_SECONDS = 12.0
+HEADS_UP_ACTION = 'Nothing to do now: this is for when you get there.'
 
 # A good moment: stopped this long, steady (within the band, going straight)
 # this long, or a quiet road (at most QUIET_CARS close by, going straight)
@@ -133,7 +141,9 @@ TIPS = [
          gesture='press-brake',
          action='Touch the brake pedal.',
          learn='brake-cancel',
+         later='When cruise control is on, touch the brake and it lets go at once. It remembers your speed, so CC brings it back.',
          after=lambda tips: tips.used('Cruise') >= 20.0 or tips.saw('cruise-off'),
+         doable=lambda tips: tips.assist == 'Cruise',
          waiting='after some driving with cruise control',
          need=lambda tips: 'drive %d s more with cruise control on (or switch it off)' % _left(20.0 - tips.used('Cruise')),
          expect=['cruise'],
@@ -147,6 +157,7 @@ TIPS = [
          control=dict(button='cc', press='tap', label='CC'),
          action='Press CC once.',
          learn='resume',
+         later='When braking has put cruise control on standby, press CC to go back to the speed you had set.',
          after=lambda tips: tips.assist == 'Cruise standby',
          strict=True, anytime=True,
          waiting='after you brake with cruise control on',
@@ -162,6 +173,7 @@ TIPS = [
          control=dict(button=['speed-up', 'speed-down'], press='tap', label='SPEED + / −'),
          action='Press the top or bottom button once.',
          learn='speed-adjust',
+         later='When cruise control is on, the top and bottom buttons change its speed in 5 km/h steps.',
          after=lambda tips: tips.assist == 'Cruise',
          strict=True,
          waiting='when cruise control is on',
@@ -188,6 +200,7 @@ TIPS = [
          control=dict(button=['speed-up', 'speed-down'], press='tap', label='SPEED + / −'),
          action='Press the top or bottom button once.',
          learn='acc-speed-adjust',
+         later='When adaptive cruise is on, the top and bottom buttons move its set speed in 5 km/h steps.',
          after=lambda tips: tips.assist == 'ACC',
          strict=True, anytime=True,
          waiting='when adaptive cruise is on',
@@ -204,10 +217,11 @@ TIPS = [
                       where='down: closer'),
          action='Press the d-pad up or down.',
          learn='gap-change',
-         after=lambda tips: tips.assist == 'ACC',
+         later='When adaptive cruise follows a car, the d-pad sets the gap: up for more room, down to follow closer.',
+         after=lambda tips: tips.gap_can_be_seen,
          strict=True, anytime=True,
-         waiting='when adaptive cruise is on',
-         need='switch adaptive cruise on',
+         waiting='when adaptive cruise follows a car',
+         need='follow a car with adaptive cruise on',
          expect=['acc'],
          done_title='Following gap changed',
          done_body='The bars on the adaptive cruise card show the gap you picked.'),
@@ -234,6 +248,7 @@ TIPS = [
          control=dict(button=['speed-up', 'speed-down'], press='tap', label='SPEED + / −'),
          action='Press the top or bottom button once.',
          learn='ap-speed',
+         later='When the autopilot is driving, the top and bottom buttons change its speed in 5 km/h steps.',
          after=lambda tips: tips.assist == 'Autopilot',
          strict=True, anytime=True,
          waiting='when the autopilot is driving',
@@ -249,6 +264,7 @@ TIPS = [
          gesture='press-throttle',
          action='Press the accelerator.',
          learn='ap-override',
+         later='When the autopilot is driving, press the accelerator to go faster for a moment. It keeps steering.',
          after=lambda tips: tips.assist == 'Autopilot',
          strict=True, anytime=True,
          waiting='when the autopilot is driving',
@@ -265,6 +281,7 @@ TIPS = [
                       hint='PULL ONCE', where='behind the wheel'),
          action='Pull the right paddle.',
          learn='mode-dynamic',
+         later='When you drive yourself, pull the right paddle for Dynamic mode and a sharper throttle.',
          after=lambda tips: tips.driving_yourself,
          strict=True,
          waiting='when you drive yourself, with no assist on',
@@ -280,6 +297,7 @@ TIPS = [
                       hint='PRESS TO MAX', where='right, on the wheel'),
          action='Press until regen shows Maximum.',
          learn='regen-max',
+         later='When you drive yourself, press the right wheel button up to Maximum regen: lift off and the car slows firmly.',
          after=lambda tips: tips.driving_yourself,
          strict=True,
          waiting='when you drive yourself, with no assist on',
@@ -314,6 +332,8 @@ class Tips(object):
         self._prev = None
         # The activeAssist this frame, for the tips' `after` conditions.
         self.assist = 'None'
+        self.lead_gap = None
+        self._acc_for = 0.0
         # The moment, measured whether or not the manual runs.
         self._ctx = {}
         self._stopped_for = 0.0
@@ -334,6 +354,8 @@ class Tips(object):
         self._why = None
         self._since = 0.0
         self._done_until = None
+        # The tip on screen is a heads-up: its mode is not on.
+        self._heads_up = False
         # The free drive at the end of a test (drive_log.py): no tips.
         self.paused = False
 
@@ -393,6 +415,14 @@ class Tips(object):
         """No assist holds the speed, so the driver feels the throttle and regen."""
         return _family(self.assist) is None or self.assist.endswith('standby')
 
+    @property
+    def gap_can_be_seen(self):
+        """Adaptive cruise is following a car, or has found none for long enough."""
+        if self.assist != 'ACC':
+            return False
+        following = self.lead_gap is not None and self.lead_gap <= GAP_TIP_LEAD_M
+        return following or self._acc_for >= NEXT_ANYWAY_SECONDS
+
     def used(self, assist):
         """Seconds this assist (Cruise, ACC, Autopilot) has been active since the start."""
         return self._used.get(assist, 0.0)
@@ -408,6 +438,8 @@ class Tips(object):
         self._last = now
         self._watch(state, context, dt, now)
         assist = self.assist = state.get('activeAssist', 'None')
+        self.lead_gap = state.get('accLead')
+        self._acc_for = self._acc_for + dt if assist == 'ACC' else 0.0
         events = self._events(self._prev, state)
         self._prev = dict(state)
         if not self.running:
@@ -434,10 +466,11 @@ class Tips(object):
                 self._turn_since = now
         if self._tip is None and self._queue and good and not bad and now - self._last_tip >= TIP_GAP_SECONDS:
             # The next tip, or an anytime tip further on whose moment has come.
-            for nxt in self._queue[:1] + [t for t in self._queue[1:] if t.get('anytime')]:
-                if self._turn(nxt, now):
+            for i, nxt in enumerate(self._queue[:1] + [t for t in self._queue[1:] if t.get('anytime')]):
+                if self._turn(nxt, now, first=i == 0):
                     self._tip, self._since, self._why = nxt, now, good
-                    self._log('%s shown (%s)' % (nxt['id'], good))
+                    self._heads_up = not self._doable(nxt)
+                    self._log('%s shown%s (%s)' % (nxt['id'], ' as a heads-up' if self._heads_up else '', good))
                     break
 
         return dict(manual=True,
@@ -454,11 +487,17 @@ class Tips(object):
             return None
         return self._queue[0].get('expect')
 
-    def _turn(self, tip, now):
-        """Whether the tip's turn has come: its condition, or waiting long enough."""
+    def _turn(self, tip, now, first=False):
+        """Whether the tip's turn has come: its condition, or, for the first in
+        the queue, waiting long enough."""
         if tip.get('after') is None or tip['after'](self):
             return True
-        return not tip.get('strict') and now - self._turn_since >= NEXT_ANYWAY_SECONDS
+        return first and now - self._turn_since >= NEXT_ANYWAY_SECONDS
+
+    def _doable(self, tip):
+        """Whether the driver can do the tip now, in the mode they are in."""
+        check = tip.get('doable') or (tip.get('after') if tip.get('strict') else None)
+        return check is None or check(self)
 
     def _follow_tip(self, events, now):
         """The tip on screen stays until it is done, then shows done for DONE_SECONDS."""
@@ -467,9 +506,21 @@ class Tips(object):
                 self._queue.remove(self._tip)
                 self._tip = self._done_until = None
                 self._last_tip = self._turn_since = now
+                self._acc_for = 0.0
         elif self._tip['learn'] in events:
             self._done_until = now + DONE_SECONDS
+            self._heads_up = False
             self._log('%s done after %.0f s' % (self._tip['id'], now - self._since))
+        elif self._heads_up:
+            if self._doable(self._tip):
+                self._heads_up = False   # they got there: now it can be done
+                self._since = now
+            elif now - self._since >= HEADS_UP_SECONDS:
+                self._queue.remove(self._tip)
+                self._tip = None
+                self._heads_up = False
+                self._last_tip = self._turn_since = now
+                self._acc_for = 0.0
 
     def _payload(self):
         if self._tip is None:
@@ -478,6 +529,8 @@ class Tips(object):
         tip['why'] = self._why
         if self._done_until is not None:
             tip.update(title=self._tip['done_title'], body=self._tip['done_body'], complete=True)
+        elif self._heads_up:
+            tip.update(body=self._tip['later'], action=HEADS_UP_ACTION)
         return tip
 
     def _status(self, good, bad, now):
@@ -489,7 +542,7 @@ class Tips(object):
         if not self._queue:
             return 'All tips given'
         nxt = self._queue[0]
-        if not self._turn(nxt, now):
+        if not self._turn(nxt, now, first=True):
             return 'Next tip %s' % nxt['waiting']
         if bad:
             return 'Not now: %s' % bad
@@ -501,6 +554,10 @@ class Tips(object):
             if self._done_until is not None:
                 return dict(moment=None, next='Next tip at least %d s after this one' % TIP_GAP_SECONDS)
             why = (self._why or '').replace('Why now: ', '')
+            if self._heads_up:
+                return dict(moment='For when you get there; next tip in %d s'
+                                   % _left(HEADS_UP_SECONDS - (now - self._since)),
+                            next=None)
             return dict(moment='Picked this moment: %s' % why if why else None,
                         next='This tip stays until you do it: %s' % _clause(self._tip.get('action', '')))
         if not self._total:
@@ -509,7 +566,7 @@ class Tips(object):
             return dict(moment=None, next='All tips given, drive as you like')
 
         nxt = self._queue[0]
-        ready = any(self._turn(t, now) for t in self._queue[:1] + [t for t in self._queue[1:] if t.get('anytime')])
+        ready = self._turn(nxt, now, first=True) or any(self._turn(t, now) for t in self._queue[1:] if t.get('anytime'))
         if ready:
             need = None
         else:
@@ -517,8 +574,8 @@ class Tips(object):
             if callable(need):
                 need = need(self)
             need = 'Next tip when you %s' % need if nxt.get('need') else 'Next tip %s' % need
-            if not nxt.get('strict'):
-                need += ', or in %s anyway' % _clock_text(NEXT_ANYWAY_SECONDS - (now - self._turn_since))
+            need += ', or in %s %s' % (_clock_text(NEXT_ANYWAY_SECONDS - (now - self._turn_since)),
+                                       'as a tip for later' if not self._doable(nxt) else 'anyway')
         pause = TIP_GAP_SECONDS - (now - self._last_tip)
         if need is None and pause > 0:
             need = 'Short pause after the last tip: %d s' % _left(pause)
