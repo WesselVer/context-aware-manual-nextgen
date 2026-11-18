@@ -213,6 +213,8 @@ A good moment is standing still, steady on a straight, or a quiet road; a bad on
 cars or people close by, or a manoeuvre (turning, reversing, braking hard) in the last few seconds.
 Highway ramps count as junctions. The rules and the tips' wording are in [`manual/tips.py`](manual/tips.py).
 
+When a user tries a feature themselves before the car recommends it, it is assumed as 'known' and will be excluded from the manual for that session.
+
 ## The G25
 
 | Control | Does |
