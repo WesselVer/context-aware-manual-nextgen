@@ -26,7 +26,7 @@
 </p>
 
 This is the study's simulator on **CARLA 1.0**, which runs on Unreal Engine 5.8: the same drive, manual, wheel,
-dashboard, traffic and driving score as [context-aware-manual-sim](https://github.com/WesselVer/context-aware-manual-sim)
+dashboard, traffic and driving score as the earlier version of this project
 (CARLA 0.9.16, Unreal Engine 4), on the same Town04, with Unreal Engine 5's lighting. The study's project started on
 CARLA 0.10.0 (Unreal Engine 5, no Town04) and moved to 0.9.16 for Town04's highway; 1.0 has both.
 
@@ -185,6 +185,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 | **F** | start the scored free drive; F again ends it early |
 | **P** | skip the tip on screen (for testing) |
 | hold **R** | stop the manual |
+| hold **Z** (5 s) | reset for the next participant: closes the test, puts the car back and starts a new log folder (a tap is the left blinker) |
 | **J** | swap the dashboard layout |
 | **F1** | hide or show CARLA's debug HUD |
 | **Esc** | end the drive |
@@ -329,8 +330,8 @@ study/                   the controls handout for participants (A3, SVG and PDF)
 docs/                    the images in this README
 ```
 
-The history of the project is in this repository's commits: it started on CARLA 0.10.0, moved to 0.9.16 in
-[context-aware-manual-sim](https://github.com/WesselVer/context-aware-manual-sim), and came to 1.0 here. The tuning
+The history of the project is in this repository's commits: it started on CARLA 0.10.0, moved to 0.9.16, and came to
+1.0 here. The tuning
 comments in the code say which version a value was measured on.
 
 ## Credits and licences
