@@ -198,9 +198,12 @@ var SPEED_MAX = 160;
 // A paddle pulled past the last drive mode, when, and how it shows: the shake
 // goes by the clock, so that redrawing the page does not restart it.
 var MODE_BLOCK_MS = 2500, MODE_SHAKE_MS = 600;
-var lastBlocked = null, blockedAt = 0;
+var lastBlocked = null, blockedAt = 0, blockedMode = null;
 
-function modeBlockedNow() { return blockedAt && Date.now() - blockedAt < MODE_BLOCK_MS; }
+// Only while still in the mode that said no: leaving it ends the message.
+function modeBlockedNow() {
+  return blockedAt && state.driveMode === blockedMode && Date.now() - blockedAt < MODE_BLOCK_MS;
+}
 function modeShake() {
   return modeBlockedNow() ? 'animation-delay: -' + Math.min(MODE_SHAKE_MS, Date.now() - blockedAt) + 'ms; ' : '';
 }
@@ -1123,7 +1126,7 @@ var shownRoad = null;
 
 function draw() {
   if (state.modeBlocked !== lastBlocked) {
-    if (lastBlocked !== null) blockedAt = modeAt = Date.now();
+    if (lastBlocked !== null) { blockedAt = modeAt = Date.now(); blockedMode = state.driveMode; }
     lastBlocked = state.modeBlocked;
   }
   assistChime(state.activeAssist);
