@@ -25,6 +25,8 @@
   in tip.highlight, and draws either tip.control, the G25 button (or buttons)
   to tap or hold on the shifter or the wheel, or tip.gesture, the movement the driver makes. Once the driver
   has done it, tip.complete shows it done, with a chime of its own.
+  A tip left undone for 30 s (tips.py's NUDGE_SECONDS) counts tipNudge up:
+  each count chimes, shakes the tip card and tags it "Look at the screen".
   Zones: speed, throttle, brake, gear, cruise, acc, autopilot, driveMode, regen.
   Shifter buttons: speed-up, speed-down, cc, acc, autopilot, dpad-up (gap +), dpad-down (gap -).
   Wheel (tip.control.device = 'wheel'): paddle-left, paddle-right, regen-down, regen-up.
@@ -71,6 +73,19 @@ button { font: inherit; }
   0%, 25% { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(62, 106, 225, 0.35), 0 0 60px 10px rgba(62, 106, 225, 0.30); }
   100% { border-color: #C5D3F5; box-shadow: none; }
 }
+/* A tip left undone (tipNudge): the card shakes, and its border keeps
+   pulsing so a glance back finds it. */
+.tip-nudge { border-color: var(--accent) !important; animation: tipShake 0.7s ease-in-out, tipNudge 1.6s ease-in-out infinite; }
+@keyframes tipShake {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-16px); } 35% { transform: translateX(14px); }
+  55% { transform: translateX(-10px); } 75% { transform: translateX(6px); } 90% { transform: translateX(-2px); }
+}
+@keyframes tipNudge {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(62, 106, 225, 0.40), 0 0 60px 12px rgba(62, 106, 225, 0.32); }
+  50% { box-shadow: 0 0 0 2px rgba(62, 106, 225, 0.15), 0 0 24px 4px rgba(62, 106, 225, 0.10); }
+}
+.nudge-tag { padding: 4px 12px; border-radius: 8px; font-size: 17px; font-weight: 700; letter-spacing: 0.08em; background: var(--accent); color: #FFFFFF; }
 /* release-throttle: the foot lifts off the accelerator and the pedal springs up. */
 .g-loop { animation: gFade 3.4s ease-in-out infinite; }
 .g-foot { transform-box: view-box; transform-origin: 84px 168px; animation: gFoot 3.4s ease-in-out infinite; }
@@ -180,6 +195,7 @@ var DEFAULTS = {
   regenLevel: 1,          // 0..3: Off | Low | Medium | Maximum
   showTip: false,
   tip: null,              // {title, body, why, highlight, control | gesture, action, complete}; null uses SAMPLE_TIP
+  tipNudge: 0,            // counts up each time a tip left undone asks the driver to look
   layout: 'minimal',      // full | minimal (J in the driver swaps them)
   manualStatus: null,     // {moment, next}: the minimal layout's grey lines about the manual
   accent: '#3E6AE1'
@@ -599,6 +615,12 @@ function controlSvg(c) {
 // The tip panel, drawn only when the tip changes so its animations run on.
 // It grows to TIP_HEIGHT while a tip shows, and the dashboard above compacts.
 var TIP_HEIGHT = 420;
+// A tip left undone (tipNudge) shakes and is tagged; otherwise it slides in.
+function nudged(p) {
+  return p.tipNudge > 0 && p.tip && !p.tip.complete && !p.tip.score;
+}
+function tipClass(p) { return nudged(p) ? 'tip-nudge' : 'tip-in'; }
+function nudgeTag(p) { return nudged(p) ? '<span class="nudge-tag">LOOK AT THE SCREEN</span>' : ''; }
 function renderTip(p) {
   var accent = p.accent;
   if (!p.showTip) {
@@ -663,12 +685,12 @@ function renderTip(p) {
       '<span style="font-size: 24px; line-height: 1.3; color: #393C41">On the G25:<br>' + esc(tip.input) + '</span>' +
       '</div>';
   }
-  return '<section aria-label="Manual tip" class="tip-in" style="height: ' + TIP_HEIGHT + 'px; flex-shrink: 0; box-sizing: border-box; padding: 28px 36px; border-radius: 20px; background: #FFFFFF; border: 2px solid #C5D3F5; display: flex; gap: 44px">' +
+  return '<section aria-label="Manual tip" class="' + tipClass(p) + '" style="height: ' + TIP_HEIGHT + 'px; flex-shrink: 0; box-sizing: border-box; padding: 28px 36px; border-radius: 20px; background: #FFFFFF; border: 2px solid #C5D3F5; display: flex; gap: 44px">' +
     '<div style="width: 700px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; padding-right: 44px; border-right: 1px solid #E4E5E7">' +
     visual + '</div>' +
     '<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px">' +
     '<div style="display: flex; align-items: center; gap: 12px">' +
-    '<span style="font-size: 17px; font-weight: 700; letter-spacing: 0.08em; color: ' + (tip.complete ? '#1E9E52' : accent) + '">' + (tip.score ? 'FINAL TIP' : (tip.complete ? 'NICE ONE' : 'MANUAL TIP')) + '</span></div>' +
+    '<span style="font-size: 17px; font-weight: 700; letter-spacing: 0.08em; color: ' + (tip.complete ? '#1E9E52' : accent) + '">' + (tip.score ? 'FINAL TIP' : (tip.complete ? 'NICE ONE' : 'MANUAL TIP')) + '</span>' + nudgeTag(p) + '</div>' +
     '<h3 style="margin: 0; font-size: 46px; font-weight: 600; line-height: 1.12">' + esc(tip.title) + '</h3>' +
     '<p style="margin: 0; font-size: 27px; line-height: 1.4; color: #393C41">' + esc(tip.body) + '</p>' +
     '<span style="font-size: 19px; color: #5C5E62">' + esc(tip.why) + '</span></div></section>';
@@ -933,7 +955,7 @@ function renderMiniTip(p) {
   if (!p.showTip) return '';
   var accent = p.accent;
   var tip = p.tip || SAMPLE_TIP;
-  var card = '<section aria-label="Manual tip" class="tip-in" style="width: 1000px; box-sizing: border-box; padding: 28px 40px; border-radius: 24px; background: #FFFFFF; border: 2px solid #C5D3F5; display: flex; align-items: center; gap: 40px">';
+  var card = '<section aria-label="Manual tip" class="' + tipClass(p) + '" style="width: 1000px; box-sizing: border-box; padding: 28px 40px; border-radius: 24px; background: #FFFFFF; border: 2px solid #C5D3F5; display: flex; align-items: center; gap: 40px">';
   if (tip.score) {
     var rows = '';
     tip.score.parts.forEach(function (part) {
@@ -963,7 +985,8 @@ function renderMiniTip(p) {
   }
   return card + '<div style="width: 420px; flex-shrink: 0; display: flex; justify-content: center">' + visual + '</div>' +
     '<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">' +
-    '<span style="font-size: 18px; font-weight: 700; letter-spacing: 0.08em; color: ' + (tip.complete ? '#1E9E52' : accent) + '">' + (tip.complete ? 'NICE ONE' : 'TIP') + '</span>' +
+    '<div style="display: flex; align-items: center; gap: 12px">' +
+    '<span style="font-size: 18px; font-weight: 700; letter-spacing: 0.08em; color: ' + (tip.complete ? '#1E9E52' : accent) + '">' + (tip.complete ? 'NICE ONE' : 'TIP') + '</span>' + nudgeTag(p) + '</div>' +
     '<h3 style="margin: 0; font-size: 40px; font-weight: 600; line-height: 1.15">' + esc(tip.title) + '</h3>' +
     '<span style="font-size: 26px; line-height: 1.35; color: #393C41">' + esc(tip.complete ? (tip.body || '') : (tip.action || tip.input || '')) + '</span>' +
     '</div></section>';
@@ -1000,6 +1023,9 @@ var CHIMES = {
   tip: { wave: 'sine', volume: 0.42, notes: [[659.25, 0, 1.3], [987.77, 0.16, 1.3]] },
   // A tip done: a quick bright rise, shorter than the tip's own.
   tipDone: { wave: 'sine', volume: 0.36, notes: [[783.99, 0, 0.35], [1046.5, 0.09, 0.35], [1318.5, 0.18, 0.8]] },
+  // A tip left undone: the tip's two notes, played twice and quicker, a knock
+  // that asks for a look.
+  nudge: { wave: 'sine', volume: 0.46, notes: [[659.25, 0, 0.4], [987.77, 0.12, 0.5], [659.25, 0.42, 0.4], [987.77, 0.54, 0.9]] },
   accOn: { wave: 'triangle', volume: 0.46, notes: [[587.33, 0, 0.5], [880.0, 0.12, 0.7]] },
   accOff: { wave: 'triangle', volume: 0.46, notes: [[880.0, 0, 0.5], [587.33, 0.12, 0.7]] },
   autopilotOn: { wave: 'sine', volume: 0.36, notes: [[523.25, 0, 0.9], [659.25, 0.11, 0.9], [783.99, 0.22, 0.9], [1046.5, 0.33, 1.4]] },
@@ -1075,6 +1101,7 @@ var state = Object.assign({}, DEFAULTS);
 var shown = '';
 var shownTip = null;
 var heardTip = null;
+var heardNudge = 0;
 var mini = document.getElementById('mini');
 var miniLeft = document.getElementById('m-left');
 var miniCardsEl = document.getElementById('m-cards');
@@ -1115,7 +1142,10 @@ function draw() {
     }
     heardTip = tipContent;
   }
-  var tipKey = state.showTip ? tipContent
+  var nudge = nudged(state) && state.showTip ? state.tipNudge : 0;
+  if (nudge > heardNudge) chime('nudge');
+  heardNudge = nudge;
+  var tipKey = state.showTip ? tipContent + '\u0000' + nudge
     : 'idle' + JSON.stringify([state.manual, state.contextStatus, state.tipProgress, state.freeDrive]);
   if (isMini) {
     // The tip card is drawn only when the tip changes, so its animations run on.

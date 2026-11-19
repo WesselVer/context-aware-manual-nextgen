@@ -374,6 +374,7 @@ class DriveLog(object):
         self._events = []
         self._prev_state = None
         self._tip = None
+        self._nudge = 0
         self._free_since = None
         self._result = None
         self._free_duration = 0.0
@@ -464,6 +465,10 @@ class DriveLog(object):
         if key != self._tip and tip is not None and tip.get('id') != 'final-score':
             self.event('tip-done' if key[1] else 'tip-shown', key[0])
         self._tip = key
+        nudge = state.get('tipNudge', 0)
+        if tip is not None and nudge > self._nudge:
+            self.event('tip-nudge', '%s %d' % (tip.get('id'), nudge))
+        self._nudge = nudge
 
         now = self._clock()
         if now >= self._next_sample:
@@ -475,10 +480,10 @@ class DriveLog(object):
             if left <= 0:
                 self._finish_free_drive()
             else:
-                return dict(freeDrive=True, showTip=False, tip=None, tipProgress=None,
+                return dict(freeDrive=True, showTip=False, tip=None, tipProgress=None, tipNudge=0,
                             contextStatus='%d:%02d left' % (left // 60, left % 60))
         if self._result is not None:
-            return dict(freeDrive=False, showTip=True,
+            return dict(freeDrive=False, showTip=True, tipNudge=0,
                         tip=final_tip(self._result, self._free_duration))
         return dict(freeDrive=False)
 

@@ -2656,7 +2656,8 @@ def game_loop(args):
             if sound is not None:
                 sound.update(speed / 3.6, world.player.get_control(), state.get('driveMode'))
                 # The dashboard chimes for these: the car steps back for it.
-                chime_for = (state.get('activeAssist'), repr(state.get('tip')) if state.get('showTip') else None)
+                chime_for = (state.get('activeAssist'), repr(state.get('tip')) if state.get('showTip') else None,
+                             state.get('tipNudge'))
                 if last_chime_for is not None and chime_for != last_chime_for:
                     sound.duck()
                 last_chime_for = chime_for

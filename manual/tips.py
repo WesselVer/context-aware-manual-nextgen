@@ -32,7 +32,10 @@ short "done" confirmation and goes. A tip that can only be done in a mode the
 driver is not in (`strict`, or its `doable`) comes after NEXT_ANYWAY_SECONDS as
 a heads-up instead: its `later` text, for HEADS_UP_SECONDS, then the next tip.
 Should the driver enter the mode meanwhile, it becomes the ordinary tip. Until
-it comes, the dashboard keeps nudging them towards the mode. A tip the driver does before its turn
+it comes, the dashboard keeps nudging them towards the mode. A tip left undone
+for NUDGE_SECONDS is taken as unseen: tipNudge counts up, and the dashboard
+chimes and asks the driver to look at the screen (not at a bad moment, nor
+for a heads-up, which goes by itself). A tip the driver does before its turn
 is skipped: they know it already; so is one whose `known` condition holds
 when its turn comes (switching on an assist that is already on).
 
@@ -74,6 +77,10 @@ GAP_TIP_LEAD_M = 80.0
 # How long a tip for a mode the driver is not in stays, and what it asks.
 HEADS_UP_SECONDS = 12.0
 HEADS_UP_ACTION = 'Nothing to do now: this is for when you get there.'
+# A tip left undone this long is being ignored: the dashboard nudges the
+# driver to look at the screen, and again each NUDGE_SECONDS after, though
+# never at a bad moment (a junction, a manoeuvre); it waits for that to pass.
+NUDGE_SECONDS = 30.0
 
 # A good moment: stopped this long, steady (within the band, going straight)
 # this long, or a quiet road (at most QUIET_CARS close by, going straight)
@@ -356,6 +363,9 @@ class Tips(object):
         self._done_until = None
         # The tip on screen is a heads-up: its mode is not on.
         self._heads_up = False
+        # How often the driver was nudged to look at the tip on screen, and when next.
+        self._nudges = 0
+        self._nudge_at = None
         # The free drive at the end of a test (drive_log.py): no tips.
         self.paused = False
 
@@ -444,7 +454,7 @@ class Tips(object):
         self._prev = dict(state)
         if not self.running:
             return dict(manual=False, showTip=False, tip=None, contextStatus=None, manualStatus=None,
-                        tipProgress=None, expect=None)
+                        tipProgress=None, expect=None, tipNudge=0)
 
         family = _family(assist)
         if family is not None and not assist.endswith('standby'):
@@ -452,7 +462,7 @@ class Tips(object):
         self._seen.update(events)
         if self.paused:
             return dict(manual=True, showTip=False, tip=None, contextStatus=None, manualStatus=None,
-                        tipProgress=None, expect=None)
+                        tipProgress=None, expect=None, tipNudge=0)
         good, bad = self.moment()
 
         if self._tip is not None:
@@ -472,6 +482,7 @@ class Tips(object):
                     self._heads_up = not self._doable(nxt)
                     self._log('%s shown%s (%s)' % (nxt['id'], ' as a heads-up' if self._heads_up else '', good))
                     break
+        self._nudge(now, bad)
 
         return dict(manual=True,
                     showTip=self._tip is not None,
@@ -479,7 +490,21 @@ class Tips(object):
                     contextStatus=self._status(good, bad, now),
                     manualStatus=self._manual_status(good, bad, now),
                     tipProgress=[self._total - len(self._queue), self._total],
-                    expect=self._expect(now))
+                    expect=self._expect(now),
+                    tipNudge=self._nudges)
+
+    def _nudge(self, now, bad):
+        """Counts the nudges for a tip left undone on screen (see NUDGE_SECONDS)."""
+        if self._tip is None or self._done_until is not None or self._heads_up:
+            self._nudges, self._nudge_at = 0, None
+            return
+        if self._nudge_at is None:
+            self._nudge_at = self._since + NUDGE_SECONDS
+        if now >= self._nudge_at and not bad:
+            self._nudges += 1
+            self._nudge_at = now + NUDGE_SECONDS
+            self._log('%s not done after %.0f s: nudge %d to look at the screen'
+                      % (self._tip['id'], now - self._since, self._nudges))
 
     def _expect(self, now):
         """The zones of the mode the next tip waits for the driver to use, or None."""

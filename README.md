@@ -62,7 +62,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 | **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that you can override with the pedals and wheel. |
 | **Logitech G25** | Steering, pedals and the H-shifter as an automatic's P/R/N/D, with force feedback; the shifter's red buttons are cruise, adaptive cruise and autopilot. The keyboard works beside it. |
 | **Second-screen dashboard** | A production-style dashboard in a browser window on screen 2: speed, gear, assists with a lane view of the car ahead, and the manual's tips with a drawing of the button to press. |
-| **Context-aware manual** | 12 tips from the basics up, the same order for every driver. Each one waits for a safe moment and stays until the driver has done it (a tip for a mode they still aren't in after a minute shows briefly, for later); one already known is skipped. The dashboard says why it picked, or is waiting for, a moment. |
+| **Context-aware manual** | 12 tips from the basics up, the same order for every driver. Each one waits for a safe moment and stays until the driver has done it (left undone for 30 s, it chimes again and asks them to look at the screen; a tip for a mode they still aren't in after a minute shows briefly, for later); one already known is skipped. The dashboard says why it picked, or is waiting for, a moment. |
 | **Traffic that reacts** | SUMO drives ~110 cars on Town04 with human-like car following and lane changes; the participant's car is in SUMO too, so traffic slows behind them and lets them merge. |
 | **Driving score** | The drive is logged at 10 Hz, and the free drive at the end is scored on safety, lane keeping, speed, smoothness and use of the features, with an explainable report per participant and one CSV for all. |
 
@@ -169,7 +169,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 3. **Getting used to the car**: `python drive.py --tm-port 8010 --participant P07`. The participant drives on the
    highway for a few minutes; the manual is off.
 4. **Guided drive**: the researcher presses **B**. The manual starts and so does the log. The participant keeps
-   driving; tips appear when the moment is right, and each stays until they have done it. A tip for a mode they still aren't in after a minute shows briefly, for later.
+   driving; tips appear when the moment is right, and each stays until they have done it; one left undone for 30 s chimes again and asks them to look at the screen. A tip for a mode they still aren't in after a minute shows briefly, for later.
 5. **Free drive**: the researcher presses **F**. The tips pause for up to `--free-drive-seconds` (120 s) while the
    participant drives as they like; then the drive is scored and the score shows on the dashboard as a last tip.
 6. **After**: the post-questionnaire (MS Forms): the confidence and knowledge questions again, to measure what was
