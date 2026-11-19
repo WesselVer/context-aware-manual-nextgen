@@ -263,6 +263,9 @@ class SumoTraffic(object):
             if pump is not None:
                 pump()
         self._traci = traci
+        # What traci raises once SUMO is gone: FatalTraCIError when it crashed
+        # mid-answer, a socket error (ConnectionResetError) when it was killed.
+        self._gone = (traci.exceptions.FatalTraCIError, OSError)
         self._subscribed = set()   # SUMO ids with a subscription of any kind
         self.laps, self._lap_at = {}, 0.0   # seconds spent in each part of the ticks
         self._live = set(traci.vehicle.getIDList())
@@ -292,6 +295,7 @@ class SumoTraffic(object):
         self.twin_ok = False      # whether the drive's car is in SUMO
         self.behind_s = 0.0       # how far the clock has fallen behind real time
         self._running = False
+        self.lost = False         # SUMO quit during the drive (_lose_sumo)
         self._thread = None
         self._lock = threading.Lock()   # a tick, or clear_around, at a time
         self._original = self._world.get_settings()
@@ -322,6 +326,12 @@ class SumoTraffic(object):
                 with self._lock:
                     self._tick()
                 self._lap('your car')
+            except self._gone as error:
+                # SUMO itself is gone: on 2026-11-19 sumo.exe 1.28.0 crashed
+                # (an access violation) 3 minutes into a drive, and this thread
+                # died with the world still in synchronous mode, ticked by no one.
+                self._lose_sumo(error)
+                return
             except Exception:  # noqa: BLE001 - the traffic must not end the drive
                 logging.exception('SUMO traffic: tick failed')
             now = time.perf_counter()
@@ -527,13 +537,15 @@ class SumoTraffic(object):
         (CARLA's) where the drive's car is about to be put down (CLEAR_RADIUS);
         returns how many. Safe while the clock runs: it waits for the tick."""
         with self._lock:
+            if self.lost:
+                return 0
             bridge, traci = self._bridge, self._traci
             offset_x, offset_y = bridge.offset
             yaw = math.radians(transform.rotation.yaw)
             fx, fy = math.cos(yaw), math.sin(yaw)
             here = transform.location
             twin = self._twin[1] if self._twin is not None else None
-            removed = 0
+            removed, fatal = 0, None
             for actor_id in list(self._live):
                 if actor_id == twin:
                     continue
@@ -553,20 +565,25 @@ class SumoTraffic(object):
                     traci.vehicle.remove(actor_id)
                 except self._traci.exceptions.TraCIException:
                     continue
+                except self._gone as error:
+                    fatal = error
+                    break
                 removed += 1
                 self._live.discard(actor_id)
                 self._subscribed.discard(actor_id)
                 carla_id = self._in_carla.pop(actor_id, None)
                 if carla_id is not None:
                     self._client.apply_batch_sync([carla.command.DestroyActor(carla_id)], False)
-            return removed
+        if fatal is not None:
+            self._lose_sumo(fatal)
+        return removed
 
     def _twin_report(self):
         if not self.twin_ok:
             return 'no'
         try:
             return '%.0f km/h' % (3.6 * self._traci.vehicle.getSpeed(self._twin[1]))
-        except (TypeError, self._traci.exceptions.TraCIException):
+        except (TypeError, self._traci.exceptions.TraCIException) + self._gone:
             return 'no'
 
     def _lap(self, name):
@@ -600,12 +617,21 @@ class SumoTraffic(object):
 
     # -- the end ---------------------------------------------------------------
 
-    def close(self):
-        """Stops the clock, takes the traffic out of CARLA, ends SUMO, and gives
-        the world back in asynchronous mode."""
-        self._running = False
-        if self._thread is not None:
-            self._thread.join(timeout=2.0)
+    def _lose_sumo(self, error):
+        """SUMO quit: the drive goes on without traffic, the world asynchronous
+        again (the drive starts the traffic afresh for the next participant)."""
+        if self.lost:
+            return   # the clock and clear_around can both find it
+        print('SUMO traffic: SUMO quit (%s); the drive goes on without traffic, '
+              'the next participant (hold Z) gets it back' % error, flush=True)
+        with self._lock:
+            self.lost = True
+            self._running = False
+            self.twin_ok = False
+            self._give_back_world()
+
+    def _give_back_world(self):
+        """Takes the traffic out of CARLA and puts the world back in asynchronous mode."""
         try:
             self._client.apply_batch_sync([carla.command.DestroyActor(i) for i in self._in_carla.values()], False)
             for light in self._lights.values():
@@ -615,7 +641,24 @@ class SumoTraffic(object):
         except RuntimeError as error:
             logging.warning('SUMO traffic: closing CARLA: %s', error)
         self._in_carla = {}
+
+    def close(self):
+        """Stops the clock, takes the traffic out of CARLA, ends SUMO, and gives
+        the world back in asynchronous mode."""
+        self._running = False
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        if not self.lost:
+            self._give_back_world()
         try:
             self.sumo.close()
         except Exception:  # noqa: BLE001
-            pass
+            # SUMO is gone with the socket still open, so traci's close fails
+            # sending its goodbye and keeps the connection registered: the next
+            # SumoTraffic's traci.start would find it "already active".
+            try:
+                connection = self._traci.getConnection()
+                connection._socket = None
+                connection.close(wait=False)
+            except Exception:  # noqa: BLE001
+                pass

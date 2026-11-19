@@ -854,6 +854,7 @@ class World(object):
         # Clears a place of traffic before the car is put down there (set by
         # SUMO's traffic, sumo_traffic.py: SumoTraffic.clear_around).
         self.clear_spot = None
+        self.restarts = 0   # how many times restart() has put the car down
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -963,6 +964,7 @@ class World(object):
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
+        self.restarts += 1
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -2585,21 +2587,27 @@ def game_loop(args):
 
         # SUMO's traffic round the car, on a clock of its own that ticks the
         # world in synchronous mode from here on (sumo_traffic.py).
-        if args.traffic > 0 and not args.sync:
+        def start_traffic():
             from traffic.sumo_traffic import SumoTraffic
             town = sim_world.get_map().name.split('/')[-1].replace('_Opt', '')
             try:
-                traffic = SumoTraffic(client, traffic_manager, lambda: world.player, town, args.traffic,
+                started = SumoTraffic(client, traffic_manager, lambda: world.player, town, args.traffic,
                                       os.path.join(tempfile.gettempdir(), 'context-manual-sumo'),
                                       pump=pygame.event.pump)
                 # The car was put down before SUMO's warm-up: clear its spot of the
                 # traffic now, and on every new place (World.restart) from here on.
-                traffic.clear_around(world.player.get_transform())
-                world.clear_spot = traffic.clear_around
-                traffic.start()
-            except (ImportError, ValueError, OSError, subprocess.CalledProcessError) as error:
-                traffic = None
+                started.clear_around(world.player.get_transform())
+                world.clear_spot = started.clear_around
+                started.start()
+                return started
+            except Exception as error:  # noqa: BLE001 - the traffic must not end the drive
+                world.clear_spot = None
                 print('No SUMO traffic: %s' % error)
+                return None
+
+        if args.traffic > 0 and not args.sync:
+            traffic = start_traffic()
+        traffic_place = world.restarts   # the car's place the traffic started at
 
         if args.sound_volume > 0 and pygame.mixer.get_init():
             sound = CarSound(args.sound_volume)
@@ -2622,6 +2630,14 @@ def game_loop(args):
                 clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock, args.sync):
                 return
+            if traffic is not None and traffic.lost and world.restarts != traffic_place:
+                # SUMO quit during the last drive; this one, standing at its
+                # start, gets the traffic afresh (some seconds of warm-up).
+                world.clear_spot = None
+                traffic.close()
+                world.hud.notification('Starting the traffic again ...', seconds=3.0)
+                traffic = start_traffic()
+                traffic_place = world.restarts
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
