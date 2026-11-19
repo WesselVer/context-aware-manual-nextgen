@@ -59,7 +59,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 | **Driver's seat** | CARLA's `manual_control.py`, rebuilt for a study: a driver's-eye camera tuned per car (Lincoln MKZ by default), interior and door mirrors, a steering wheel that turns in the cabin, full screen on screen 1. |
 | **Sound that doesn't stutter** | A sporty electric drive tone that grows with speed, load and drive mode, with road and wind noise, made and played by the drive itself so a late server can't interrupt it. It steps back when the dashboard chimes. |
 | **Unreal Engine 5 look** | Lumen lighting and ray-traced shadows at Epic quality, through CARLA 1.0's `Cinematic` camera profile, with NVIDIA DLSS keeping the frame time down. |
-| **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that you can override with the pedals and wheel. |
+| **A real car's features** | Drive modes (Eco, Normal, Dynamic), regenerative braking down to one-pedal driving, cruise control, adaptive cruise with a following gap, and an autopilot on CARLA's Traffic Manager that keeps to the highway (it takes no exits) and that you can override with the pedals and wheel. |
 | **Logitech G25** | Steering, pedals and the H-shifter as an automatic's P/R/N/D, with force feedback; the shifter's red buttons are cruise, adaptive cruise and autopilot. The keyboard works beside it. |
 | **Second-screen dashboard** | A production-style dashboard in a browser window on screen 2: speed, gear, assists with a lane view of the car ahead, and the manual's tips with a drawing of the button to press. |
 | **Context-aware manual** | 12 tips from the basics up, the same order for every driver. Each one waits for a safe moment and stays until the driver has done it (left undone for 30 s, it chimes again and asks them to look at the screen; a tip for a mode they still aren't in after a minute shows briefly, for later); one already known is skipped. The dashboard says why it picked, or is waiting for, a moment. |
@@ -241,7 +241,7 @@ editable as [SVG](study/controls-handout-a3.svg); add your questionnaires' QR co
 ## Traffic
 
 SUMO simulates the traffic on the whole map: on Town04 nine in ten cars are through traffic on the highway and the
-rest go anywhere, about 110 at once, some 30 within 200 m of you on the highway (`--traffic` sets how many enter an
+rest go anywhere, so cars still take the ramps and junctions while your autopilot keeps to the highway; about 110 at once, some 30 within 200 m of you on the highway (`--traffic` sets how many enter an
 hour, 2000 by default; `--traffic 0` for none). The roads' speed limits are written into SUMO's network from the
 town's map ([`traffic/set_speed_limits.py`](traffic/set_speed_limits.py); CARLA ships it at 50 km/h everywhere).
 Its drivers follow, brake and change lanes by SUMO's Extended Intelligent Driver Model, each a little above or below

@@ -407,6 +407,21 @@ AUTOPILOT_OVERRIDE_KMH = 40
 # JUNCTION_AHEAD_SECONDS at the current speed, never less than
 # JUNCTION_AHEAD_MIN_M.
 CONTEXT_OFF_HOLD_SECONDS = 1.0
+# The autopilot keeps to the highway (HighwayPath): its way is planned this
+# far ahead in steps of HIGHWAY_STEP_M, again every HIGHWAY_PATH_EVERY_S.
+# Junctions starting closer than HIGHWAY_PATH_FROM_M are left out, as the Traffic
+# Manager has already chosen its way through them (its waypoint buffer
+# reaches some 30 m ahead). Within HIGHWAY_LANE_CHECK_M of a junction it
+# changes into a lane that leads on along the highway.
+HIGHWAY_PATH_M = 1500.0
+HIGHWAY_STEP_M = 5.0
+HIGHWAY_PATH_FROM_M = 40.0
+HIGHWAY_PATH_EVERY_S = 1.0
+HIGHWAY_LANE_CHECK_M = 200.0
+HIGHWAY_LANE_CHANGE_SECONDS = 5.0
+# Such a lane change waits for the lane to be clear this far behind and ahead (m).
+HIGHWAY_CLEAR_BEHIND_M = 20.0
+HIGHWAY_CLEAR_AHEAD_M = 25.0
 # Holding Z this long resets everything for the next participant.
 NEXT_PARTICIPANT_HOLD_SECONDS = 5.0
 CONTEXT_NEAR_M = 30.0
@@ -587,6 +602,128 @@ class CruiseControl(object):
         if not self.on:
             return 'None'
         return self.name if self.active else self.name + ' standby'
+
+
+def _yaw_diff(a, b):
+    """The angle (deg, 0-180) between two headings."""
+    return abs((a - b + 180.0) % 360.0 - 180.0)
+
+
+def _lanes_beside(wp):
+    """The driving lanes of wp's road going its way, wp's among them."""
+    lanes = [wp]
+    for side in ('get_left_lane', 'get_right_lane'):
+        other = wp
+        for _ in range(8):
+            other = getattr(other, side)()
+            if (other is None or other.lane_type != carla.LaneType.Driving or
+                    (other.lane_id > 0) != (wp.lane_id > 0)):
+                break
+            lanes.append(other)
+    return lanes
+
+
+class HighwayPath(object):
+    """Keeps the autopilot on the highway. Left alone, the Traffic Manager
+    takes a random way at every junction, so it left the highway at its
+    exits. This plans the way on, HIGHWAY_PATH_M ahead: at each junction the
+    way with the most lanes, then the one that bends least, as the SUMO
+    traffic's highway_routes does. Each exit road is handed to the Traffic
+    Manager as a path point (set_path), which at a junction takes the branch
+    leading onto that road.
+
+    The Traffic Manager can only choose among the branches of the lane it
+    is in, and its own lane changes (overtaking) can put it in a lane that
+    only leads off; so when the car's lane does not lead onto the next exit
+    road, it is told to change lanes towards one that does.
+    """
+
+    def __init__(self, world_map):
+        self._map = world_map
+
+    def plan(self, car):
+        """(the path's points, the car's lane change towards it: 'left', 'right' or None)."""
+        start = self._map.get_waypoint(car.get_location(), lane_type=carla.LaneType.Driving)
+        if start is None:
+            return [], None
+        points, exits = [], []
+        wp, travelled = start, 0.0
+        for _ in range(int(HIGHWAY_PATH_M / HIGHWAY_STEP_M)):
+            if travelled >= HIGHWAY_PATH_M:
+                break
+            nexts = wp.next(HIGHWAY_STEP_M)
+            if not nexts:
+                break
+            if wp.is_junction or not any(n.is_junction for n in nexts):
+                wp = nexts[0]
+                travelled += HIGHWAY_STEP_M
+                continue
+            # A junction ahead: every lane's ways through it, the best one taken.
+            options = {}
+            for lane in _lanes_beside(wp):
+                for entry in lane.next(HIGHWAY_STEP_M):
+                    out, length = self._through(entry)
+                    if out is not None and out.road_id not in options:
+                        options[out.road_id] = (out, length)
+            if not options:
+                break
+            yaw = wp.transform.rotation.yaw
+            out, length = min(options.values(), key=lambda o: (
+                -len(_lanes_beside(o[0])), _yaw_diff(o[0].transform.rotation.yaw, yaw)))
+            exits.append((wp, out.road_id))
+            if travelled >= HIGHWAY_PATH_FROM_M:
+                points.append(out.transform.location)
+            travelled += HIGHWAY_STEP_M + length
+            wp = out
+        return points, self._lane_change(start, exits[0] if exits else None)
+
+    def _through(self, entry):
+        """The first waypoint past the junction entry is in, and the way there (m)."""
+        wp, length = entry, 0.0
+        for _ in range(200):
+            if not wp.is_junction:
+                return wp, length
+            nexts = wp.next(HIGHWAY_STEP_M)
+            if not nexts:
+                return None, length
+            wp, length = nexts[0], length + HIGHWAY_STEP_M
+        return None, length
+
+    def _leads_to(self, lane, road_id):
+        """Whether this lane, followed to its next junction, can go on onto road_id."""
+        wp = lane
+        for _ in range(int(HIGHWAY_LANE_CHECK_M / HIGHWAY_STEP_M)):
+            nexts = wp.next(HIGHWAY_STEP_M)
+            if not nexts:
+                return False
+            if any(n.is_junction for n in nexts):
+                return any(self._through(n)[0] is not None and self._through(n)[0].road_id == road_id
+                           for n in nexts)
+            wp = nexts[0]
+        return True   # no junction near: nothing to change lanes for yet
+
+    def _lane_change(self, start, junction):
+        """'left' or 'right' when the car's lane does not lead onto the next exit road."""
+        if junction is None or start.is_junction:
+            return None
+        before, road_id = junction
+        if start.transform.location.distance(before.transform.location) > HIGHWAY_LANE_CHECK_M:
+            return None
+        if self._leads_to(start, road_id):
+            return None
+        # The nearest lane that does, one lane at a time towards it.
+        for steps in range(1, 8):
+            for side in ('get_left_lane', 'get_right_lane'):
+                other = start
+                for _ in range(steps):
+                    other = getattr(other, side)()
+                    if (other is None or other.lane_type != carla.LaneType.Driving or
+                            (other.lane_id > 0) != (start.lane_id > 0)):
+                        other = None
+                        break
+                if other is not None and self._leads_to(other, road_id):
+                    return 'left' if side == 'get_left_lane' else 'right'
+        return None
 
 
 class LeadFinder(object):
@@ -1266,6 +1403,10 @@ class KeyboardControl(object):
         self._cruise = CruiseControl()
         self._cruise_override = False
         self._leads = None
+        # The autopilot's way along the highway (HighwayPath), planned again
+        # at _highway_at; a lane change it asked for is given until _highway_change_at.
+        self._highway = None
+        self._highway_at = self._highway_change_at = 0.0
         self._ap_speed = AUTOPILOT_START_KMH
         # The drive mode to go back to when the driver takes over.
         self._mode_before_autopilot = None
@@ -1696,6 +1837,7 @@ class KeyboardControl(object):
             self._ap_speed = min(AUTOPILOT_MAX_KMH, max(AUTOPILOT_START_KMH, int(round(_speed_kmh(world.player)))))
             world.player.set_autopilot(True, tm_port)
             self._configure_autopilot(world)
+            self._keep_to_highway(world, fresh=True)
             self._mode_before_autopilot = self._drive_mode
             self._set_drive_mode(AUTOPILOT_DRIVE_MODE)
             world.hud.notification('Autopilot on: %d km/h' % self._ap_speed)
@@ -1715,6 +1857,52 @@ class KeyboardControl(object):
         self._ap_tm_speed = self._ap_speed
         tm.distance_to_leading_vehicle(world.player, self._ap_distance)
         tm.auto_lane_change(world.player, True)
+
+    def _keep_to_highway(self, world, fresh=False):
+        """Hands the Traffic Manager the way along the highway (HighwayPath),
+        every HIGHWAY_PATH_EVERY_S; fresh drops the way it had planned itself."""
+        now = time.time()
+        if self._highway is False or (not fresh and now < self._highway_at):
+            return
+        self._highway_at = now + HIGHWAY_PATH_EVERY_S
+        tm = world.traffic_manager
+        try:
+            if self._highway is None:
+                self._highway = HighwayPath(world.map)
+            points, change = self._highway.plan(world.player)
+            if points:
+                tm.set_path(world.player, points, fresh)
+            if change is not None and now >= self._highway_change_at and self._lane_clear(world, change):
+                # One lane at a time: the next is asked for once this one is done.
+                tm.force_lane_change(world.player, change == 'right')
+                self._highway_change_at = now + HIGHWAY_LANE_CHANGE_SECONDS
+        except (RuntimeError, AttributeError) as error:
+            # The autopilot drives on, taking its own way at junctions.
+            print('Autopilot cannot keep to the highway: %s' % error, flush=True)
+            self._highway = False
+
+    @staticmethod
+    def _lane_clear(world, side):
+        """Whether the lane on that side has no car beside the ego car: the
+        Traffic Manager does not look before a lane change it is told to make."""
+        car = world.player
+        here = car.get_location()
+        lane = world.map.get_waypoint(here, lane_type=carla.LaneType.Driving)
+        lane = lane and (lane.get_left_lane() if side == 'left' else lane.get_right_lane())
+        if lane is None:
+            return False
+        forward = car.get_transform().get_forward_vector()
+        for other in world.world.get_actors().filter('vehicle.*'):
+            there = other.get_location()
+            if other.id == car.id or there.distance(here) > HIGHWAY_CLEAR_AHEAD_M + 10.0:
+                continue
+            along = (there.x - here.x) * forward.x + (there.y - here.y) * forward.y
+            if not -HIGHWAY_CLEAR_BEHIND_M < along < HIGHWAY_CLEAR_AHEAD_M:
+                continue
+            wp = world.map.get_waypoint(there, lane_type=carla.LaneType.Driving)
+            if wp is not None and (wp.road_id, wp.lane_id) == (lane.road_id, lane.lane_id):
+                return False
+        return True
 
     @property
     def _ap_distance(self):
@@ -1743,6 +1931,7 @@ class KeyboardControl(object):
         """While the car drives itself: its buttons, and the driver taking over."""
         self._ap_control = world.player.get_control()
         self._ap_lead = self._lead_finder(world).update(world.player)
+        self._keep_to_highway(world)
         brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         if self._wheel is None:
             if brake:
