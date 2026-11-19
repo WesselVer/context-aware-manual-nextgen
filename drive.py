@@ -118,6 +118,7 @@ Use ARROWS or WASD keys for control.
     B            : start the context-aware manual
     P            : skip the tip on screen (or the one it waits for), for testing
     hold R       : context-aware manual off
+    Z            : after a crash, put the car back on the road; the test goes on
     hold Z (5 s) : reset for the next participant
     F            : start the scored free drive at the end of the test; again to end it
     J            : swap the dashboard between the full and the minimal layout
@@ -894,6 +895,24 @@ class World(object):
                     sensor.destroy()
             car.destroy()
 
+    def reset_car(self):
+        """After a crash: puts the same car back, upright and standing still,
+        in the middle of the nearest driving lane, facing the lane's way.
+        The car is moved, not spawned again, so its sensors, the traffic's
+        twin of it and the test go on. Returns the lane it was put on."""
+        here = self.player.get_location()
+        waypoint = self.map.get_waypoint(here, project_to_road=True, lane_type=carla.LaneType.Driving)
+        spot = waypoint.transform
+        spot.location.z += 0.5
+        spot.rotation.roll = spot.rotation.pitch = 0.0
+        if self.clear_spot is not None:
+            self.clear_spot(spot)
+        self.player.set_target_velocity(carla.Vector3D())
+        self.player.set_target_angular_velocity(carla.Vector3D())
+        self.player.apply_control(carla.VehicleControl(brake=1.0))
+        self.player.set_transform(spot)
+        return 'road %d lane %d' % (waypoint.road_id, waypoint.lane_id)
+
     def restart(self, same_car=False, new_place=False):
         """Respawns the player: the next car (or the same_car) where it is, or
         at a random spawn point with new_place."""
@@ -1303,6 +1322,8 @@ class KeyboardControl(object):
                 if event.key == K_r:
                     self._r_down = None
                 if event.key == K_z:
+                    if self._z_down is not None and not self._z_held:
+                        self._reset_after_crash(world)
                     self._z_down = None
                     self._z_held = False
                 if self._is_quit_shortcut(event.key):
@@ -1520,6 +1541,24 @@ class KeyboardControl(object):
                 world.player.apply_control(self._control)
 
         self._lights = current_lights
+
+    def _reset_after_crash(self, world):
+        """Tap Z: puts a crashed car back on the road, standing still in the
+        nearest lane. The test goes on: the manual, its tips and the drive
+        log keep running; the assists go off, as the car starts from a stop.
+        """
+        if not isinstance(self._control, carla.VehicleControl):
+            return
+        self._set_autopilot(world, False)
+        self._cruise = CruiseControl()
+        self._cruise_override = False
+        self._leads = None
+        self._control = carla.VehicleControl()
+        self._key_throttle = self._steer_cache = 0.0
+        lane = world.reset_car()
+        if self._drive_log is not None and self._drive_log.running:
+            self._drive_log.event('car-reset', lane)
+        world.hud.notification('Car back on the road: drive on when ready', seconds=4.0)
 
     def _next_participant(self, client, world):
         """Hold Z: closes the test and starts over as at launch, for the next participant.

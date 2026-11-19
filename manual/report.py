@@ -30,6 +30,7 @@ METRIC_ROWS = [
     ('distance_km', 'Distance', lambda v: '%.2f km' % v),
     ('mean_speed_kmh', 'Mean speed while moving', lambda v: '%.0f km/h' % v),
     ('collisions', 'Collisions', str),
+    ('car_resets', 'Car put back on the road', str),
     ('close_calls', 'Close calls (TTC)', str),
     ('min_ttc_s', 'Shortest time to collision', lambda v: '–' if v is None else '%.1f s' % v),
     ('following_s', 'Time following a car', lambda v: '%.0f s' % v),
@@ -203,7 +204,7 @@ def summary_row(participant, drive):
             row['%s_%s' % (name, key)] = next((p['score'] for p in s['parts'] if p['key'] == key), None) if s else None
         m = phase['metrics'] if phase else {}
         for key in ('duration_s', 'distance_km', 'collisions', 'close_calls', 'short_headway_share', 'sdlp_m',
-                    'lane_crossings', 'speeding_share', 'harsh_brakes', 'takeovers'):
+                    'lane_crossings', 'speeding_share', 'harsh_brakes', 'takeovers', 'car_resets'):
             row['%s_%s' % (name, key)] = m.get(key)
         row['%s_features_used' % name] = len(m['prompted_features_used']) if 'prompted_features_used' in m else None
         row['%s_features_prompted' % name] = len(m['prompted_features']) if 'prompted_features' in m else None

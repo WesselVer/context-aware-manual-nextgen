@@ -185,6 +185,7 @@ reserves. Esc ends the drive. Useful options (`python drive.py --help` lists all
 | **F** | start the scored free drive; F again ends it early |
 | **P** | skip the tip on screen (for testing) |
 | hold **R** | stop the manual |
+| **Z** | after a crash: puts the car back on the road, standing still in the nearest lane; the assists go off, the manual and the log go on (logged as a car reset) |
 | hold **Z** (5 s) | reset for the next participant: closes the test, resets the assists, puts the car at a new place and starts a new log folder |
 | **J** | swap the dashboard layout |
 | **F1** | hide or show CARLA's debug HUD |

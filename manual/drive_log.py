@@ -151,6 +151,7 @@ METRICS = {
     'features_used': 'Features the driver used in the phase.',
     'prompted_features_used': 'Of the features the tips prompted the driver to try, those used in the phase.',
     'takeovers': 'Times the driver took the car back from the autopilot.',
+    'car_resets': 'Times the researcher put the car back on the road after a crash (Z).',
 }
 
 
@@ -251,7 +252,8 @@ def metrics(rows, events, prompted=()):
         mean_speed_kmh=round(speed_sum / moving, 1) if moving else 0.0,
         harsh_brakes=harsh,
         assist_share={k: round(v / duration, 3) for k, v in sorted(assist_time.items())},
-        takeovers=sum(1 for e in events if e['kind'] == 'takeover'))
+        takeovers=sum(1 for e in events if e['kind'] == 'takeover'),
+        car_resets=sum(1 for e in events if e['kind'] == 'car-reset'))
     used = sorted(set(e['detail'] for e in events if e['kind'] == 'feature'))
     m['features_used'] = used
     used_groups = set(feature_group(f) for f in used)
