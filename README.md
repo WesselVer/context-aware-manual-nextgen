@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="#whats-new-since-0100">What's new</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#running-a-user-test">Running a user test</a> ·
   <a href="#the-tips">The tips</a> ·
@@ -46,11 +47,18 @@ While driving, the door and interior mirrors show the road behind (this picture 
 ---
 
 ## Contents
-- [What you get](#what-you-get) · [Screenshots](#screenshots) · [How it works](#how-it-works)
+- [What's new since 0.10.0](#whats-new-since-0100) · [What you get](#what-you-get) · [Screenshots](#screenshots) · [How it works](#how-it-works)
 - [Quick start](#quick-start): [what you need](#what-you-need), [install](#install), [drive](#drive)
 - [Running a user test](#running-a-user-test): [the protocol](#the-protocol), [the researcher's keys](#the-researchers-keys), [the tips](#the-tips)
 - [The G25](#the-g25) · [Traffic](#traffic) · [Data and the driving score](#data-and-the-driving-score)
 - [From 0.9.16 to 1.0](#from-0916-to-10) · [Known limits](#known-limits) · [Project layout](#project-layout) · [Credits and licences](#credits-and-licences)
+
+## What's new since 0.10.0
+
+![What's new since CARLA 0.10.0. The world: the Town04 highway, SUMO traffic, Unreal Engine 5.8. In the car: mirrors, a sporty electric sound, a better wheel feel. Assists: adaptive cruise that follows real traffic, an autopilot that stays on the highway, a drive mode limit. The manual: tip nudges, tips for later, a fairer driving score. The study: a crash reset, a drive that survives a SUMO crash, a participant data guard.](docs/whats_new.svg)
+
+*Since the project left CARLA 0.10.0 on 10 November it has run on 0.9.16 and now on 1.0. How 1.0 was tuned
+against 0.9.16 is in [From 0.9.16 to 1.0](#from-0916-to-10).*
 
 ## What you get
 
@@ -233,10 +241,11 @@ turning the wheel firmly against the autopilot hands the car back. The steering 
 car's, with the wheel at 900 degrees in G HUB. Without a G25 the keyboard drives the car (WASD or the arrows; K for
 the autopilot).
 
-![The A3 controls handout: the steering wheel, the shifter with its red assist buttons, the pedals, and how to use cruise control, adaptive cruise and the autopilot](docs/img/controls_handout.jpg)
+![The G25's controls. Steering wheel: the left paddle sets the drive mode down and the right one up; the left button sets the regen down and the right one up. Shifter: the silver top and bottom buttons set the speed +5 and -5 km/h, the d-pad up and down set a longer and shorter gap, and the red buttons are CC, ACC and the autopilot. Gear stick: 1st is P, 3rd is D, 4th is R, the middle is N. Pedals: clutch not used, brake, accelerator.](docs/controls.svg)
 
-*The A3 handout participants keep beside the wheel ([`study/controls-handout-a3.pdf`](study/controls-handout-a3.pdf),
-editable as [SVG](study/controls-handout-a3.svg); add your questionnaires' QR codes in the dashed boxes).*
+*The controls at a glance. Participants keep the A3 handout beside the wheel
+([`study/controls-handout-a3.pdf`](study/controls-handout-a3.pdf), editable as [SVG](study/controls-handout-a3.svg);
+add your questionnaires' QR codes in the dashed boxes).*
 
 ## Traffic
 
