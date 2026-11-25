@@ -1260,7 +1260,8 @@ class Mirrors(object):
     }
 
     # The door mirror's glass in the driver's view, as a polygon (pixels at
-    # 1920x1200, read off a screenshot on CARLA 1.0): the mirror's image
+    # 1920x1200, read off a screenshot on CARLA 1.0; other screen shapes are
+    # mapped round the centre, see __init__): the mirror's image
     # fills the car's own glass, its frame round it. Any other car gets a
     # plain rectangle. These and INTERIOR_CENTRE follow DRIVER_EYES and
     # DRIVER_FOV: read them off again when those change.
@@ -1291,7 +1292,12 @@ class Mirrors(object):
         self._glass = {}
         glass = self.DOOR_GLASS.get(vehicle.type_id)
         if glass is not None:
-            pts = [(x * screen[0] / 1920.0, y * screen[1] / 1200.0) for x, y in glass]
+            # The view's horizontal field of view is fixed, so on any screen a
+            # point sits as far from the centre as on 1920x1200 times the
+            # width's ratio, up and down too: scaling y by the height instead
+            # puts the glass too high on a 16:9 screen.
+            s = screen[0] / 1920.0
+            pts = [(screen[0] / 2.0 + (x - 960) * s, screen[1] / 2.0 + (y - 600) * s) for x, y in glass]
             xs, ys = [p[0] for p in pts], [p[1] for p in pts]
             rect = pygame.Rect(int(min(xs)), int(min(ys)), int(max(xs) - min(xs)) + 1, int(max(ys) - min(ys)) + 1)
             mask = pygame.Surface(rect.size, pygame.SRCALPHA)
