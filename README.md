@@ -105,7 +105,7 @@ themselves are simulated (CARLA has no regen or cruise control, so the drive scr
 ### What you need
 - **Windows 11** with an NVIDIA RTX GPU (CARLA 1.0 runs at Epic quality with ray tracing, and the drive uses DLSS;
   developed on an RTX 5090). About 50 GB free for CARLA and its maps.
-- **Two screens**: screen 1 for the road, screen 2 for the dashboard. The lab has two 32-inch 3840x2160 monitors
+- **Two screens**: screen 1 for the road, screen 2 for the dashboard. The lab has two 27-inch 3840x2160 monitors
   (16:9, at 150% Windows scaling) since November 2026, before that 1920x1200 ones (16:10); the mirrors fit either
   shape. One screen works too, with the dashboard in
   a window.
