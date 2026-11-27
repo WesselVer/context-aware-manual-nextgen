@@ -47,7 +47,7 @@ While driving, the door and interior mirrors show the road behind (this picture 
 ---
 
 ## Contents
-- [What's new since 0.10.0](#whats-new-since-0100) · [What you get](#what-you-get) · [Screenshots](#screenshots) · [How it works](#how-it-works)
+- [What's new since 0.10.0](#whats-new-since-0100) · [What you get](#what-you-get) · [Screenshots](#screenshots) · [How it works](#how-it-works) ([the assist levels](#the-assist-levels))
 - [Quick start](#quick-start): [what you need](#what-you-need), [install](#install), [drive](#drive)
 - [Running a user test](#running-a-user-test): [the protocol](#the-protocol), [the researcher's keys](#the-researchers-keys), [the tips](#the-tips)
 - [The G25](#the-g25) · [Traffic](#traffic) · [Data and the driving score](#data-and-the-driving-score)
@@ -99,6 +99,13 @@ co-simulation, and the drive log (`manual/drive_log.py`) records what happens fo
 
 The manual is Wizard-of-Oz in one sense: participants judge the explanation and its timing; the features
 themselves are simulated (CARLA has no regen or cruise control, so the drive script builds them).
+
+### The assist levels
+
+![The four assist levels, from you driving to the car driving. Level 0, Manual: no assist on; the car gives regen and the drive modes, you steer, hold the speed and brake. Level 1, Cruise control (1st red button): the car holds your set speed and never brakes; you steer and brake for traffic. Level 2, Adaptive cruise (2nd red button): the car holds your speed, follows the car ahead and brakes; you steer. Level 3, Autopilot (3rd red button or K): the car steers, changes lanes and stays on the highway; you watch, ready to take over. Its red button switches a level on, in D, from any other; cruise and adaptive cruise switch over with the other's button. Braking, leaving D or pressing the button again hands the car back; for the autopilot, turning the wheel firmly against it does too. Cruise and adaptive cruise wait on standby after braking, and their button resumes. A table shows the overlap: levels 1 to 3 hold a set speed, let the accelerator speed past and hand back on the brake; levels 2 and 3 follow the car ahead; only level 3 steers; levels 0 to 2 keep your drive mode, the autopilot drives in Eco.](docs/assist_levels.svg)
+
+*Each level does more of the driving and shares most of what the one before it does: the same speed buttons,
+the same pedal override, the same way back. The tips teach them in this order.*
 
 ## Quick start
 
